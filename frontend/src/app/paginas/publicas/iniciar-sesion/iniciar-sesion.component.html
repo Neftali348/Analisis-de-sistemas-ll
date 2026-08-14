@@ -1,0 +1,93 @@
+<div class="public-shell">
+    <div class="public-card" style="max-width:520px">
+
+        <div class="public-top">
+            <a routerLink="/" class="brand">
+                <div class="brand-mark">SG</div>
+                SGQ
+            </a>
+
+            <a routerLink="/" class="muted">
+                Volver
+            </a>
+        </div>
+
+        <div class="inner">
+
+            <h1>Acceso interno</h1>
+
+            <p class="muted">
+                Disponible únicamente para los cuatro roles autorizados.
+            </p>
+
+            <!-- Mensaje de error -->
+            <div
+                *ngIf="error"
+                class="alert alert-error">
+                {{ error }}
+            </div>
+
+            <form
+                (ngSubmit)="login()"
+                novalidate>
+
+                <!-- Usuario -->
+                <div class="field">
+
+                    <label>
+                        Usuario
+                    </label>
+
+                    <input
+                        [(ngModel)]="username"
+                        name="username"
+                        autocomplete="username">
+                </div>
+
+                <!-- Contraseña -->
+                <div
+                    class="field"
+                    style="margin-top:14px">
+
+                    <label>
+                        Contraseña
+                    </label>
+
+                    <input
+                        [(ngModel)]="password"
+                        name="password"
+                        type="password"
+                        autocomplete="current-password">
+                </div>
+
+                <!-- Botón -->
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                    style="width:100%;margin-top:20px"
+                    [disabled]="loading">
+
+                    {{ loading ? 'Ingresando...' : 'Ingresar' }}
+
+                </button>
+
+            </form>
+
+            <!-- Recuperar contraseña -->
+            <div
+                style="text-align:center;margin-top:12px">
+
+                <button
+                    type="button"
+                    class="btn btn-outline btn-sm"
+                    (click)="forgot()">
+
+                    Olvidé mi contraseña
+
+                </button>
+            </div>
+
+
+        </div>
+    </div>
+</div>

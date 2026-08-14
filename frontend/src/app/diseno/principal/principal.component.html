@@ -1,0 +1,27 @@
+<div class="app-shell">
+ <aside class="sidebar" [class.open]="open">
+  <div class="brand"><div class="brand-mark">SG</div><div>Sistema de Quejas</div></div>
+  <div class="nav-title">Operación</div>
+  <a class="nav-link" routerLink="/app/dashboard" routerLinkActive="active" (click)="open=false">▦ Dashboard</a>
+  <a *ngIf="auth.has('CASE_VIEW')" class="nav-link" routerLink="/app/casos" routerLinkActive="active" (click)="open=false">☷ Casos</a>
+  <a *ngIf="auth.has('REPORT_VIEW')" class="nav-link" routerLink="/app/reportes" routerLinkActive="active" (click)="open=false">▤ Reportes</a>
+  <div class="nav-title" *ngIf="showAdmin">Administración</div>
+  <a *ngIf="auth.has('USER_ADMIN')" class="nav-link" routerLink="/app/usuarios" routerLinkActive="active" (click)="open=false">♙ Usuarios</a>
+  <a *ngIf="auth.has('ROLE_ADMIN')" class="nav-link" routerLink="/app/roles" routerLinkActive="active" (click)="open=false">◇ Roles y permisos</a>
+  <a *ngIf="auth.has('BRANCH_ADMIN')" class="nav-link" routerLink="/app/sucursales" routerLinkActive="active" (click)="open=false">⌂ Sucursales</a>
+  <a *ngIf="auth.has('NOTIFICATION_ADMIN')" class="nav-link" routerLink="/app/notificaciones" routerLinkActive="active" (click)="open=false">✉ Notificaciones</a>
+  <a *ngIf="auth.has('AUDIT_VIEW')" class="nav-link" routerLink="/app/auditoria" routerLinkActive="active" (click)="open=false">◉ Auditoría</a>
+ </aside>
+ <main class="main">
+  <header class="topbar">
+   <button class="btn btn-outline mobile-menu" (click)="open=!open">☰</button>
+   <div><strong>Gestión de calidad y atención</strong></div>
+   <div class="user-chip">
+    <div class="avatar">{{initials}}</div><div class="user-text"><strong>{{auth.session?.fullName}}</strong><div class="muted" style="font-size:.78rem">{{roleLabel}}</div></div>
+    <button class="btn btn-outline btn-sm" (click)="logout()">Salir</button>
+   </div>
+  </header>
+  <router-outlet />
+ </main>
+</div>
+<div *ngIf="toast.message$ | async as msg" class="toast">{{msg}}</div>

@@ -1,0 +1,80 @@
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1>Bitácora de auditoría</h1>
+            <p>Consulta de solo lectura con validación de integridad.</p>
+        </div><button class="btn btn-outline" (click)="integrity()">Verificar integridad</button>
+    </div>
+    <div *ngIf="integrityResult" class="alert" [class.alert-success]="integrityResult.valid"
+        [class.alert-error]="!integrityResult.valid">Integridad:
+        <strong>{{integrityResult.valid?'VÁLIDA':'INCONSISTENTE'}}</strong> · {{integrityResult.checked??0}} registros
+        verificados.</div>
+    <div *ngIf="error" class="alert alert-error">{{error}}</div>
+    <div class="card">
+        <div class="grid grid-4">
+            <div class="field"><label>Desde</label><input type="date" [(ngModel)]="f.from"></div>
+            <div class="field"><label>Hasta</label><input type="date" [(ngModel)]="f.to"></div>
+            <div class="field"><label>Usuario</label><input [(ngModel)]="f.username"></div>
+            <div class="field"><label>Módulo</label><input [(ngModel)]="f.module"></div>
+            <div class="field"><label>Acción</label><input [(ngModel)]="f.action"></div>
+            <div class="field"><label>IP</label><input [(ngModel)]="f.ip"></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" (click)="load(0)">Consultar</button></div>
+    </div>
+    <div class="card">
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Módulo</th>
+                        <th>Acción</th>
+                        <th>IP</th>
+                        <th>Resultado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let a of page?.content">
+                        <td>{{a.createdAt|date:'dd/MM/yy HH:mm:ss'}}</td>
+                        <td>{{a.username||'SISTEMA'}}</td>
+                        <td>{{a.role||'—'}}</td>
+                        <td>{{a.module}}</td>
+                        <td>{{a.action}}</td>
+                        <td class="mono">{{a.ipAddress}}</td>
+                        <td><span class="badge" [class.green]="a.result==='EXITOSO'"
+                                [class.red]="a.result!=='EXITOSO'">{{a.result}}</span></td>
+                        <td><button class="btn btn-outline btn-sm" (click)="detail(a.id)">Detalle</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination"><button class="btn btn-outline btn-sm" [disabled]="!page||page.page<=0"
+                (click)="load(page.page-1)">Anterior</button><span>{{(page?.page??0)+1}} /
+                {{page?.totalPages||1}}</span><button class="btn btn-outline btn-sm"
+                [disabled]="!page||page.page+1>=page.totalPages" (click)="load(page.page+1)">Siguiente</button></div>
+    </div>
+    <div *ngIf="selected" class="modal-backdrop" (click)="selected=null">
+        <div class="modal" (click)="$event.stopPropagation()">
+            <div class="split">
+                <h3>Evento #{{selected.id}}</h3><button class="btn btn-outline btn-sm"
+                    (click)="selected=null">Cerrar</button>
+            </div>
+            <p><strong>{{selected.module}} / {{selected.action}}</strong></p>
+            <p>{{selected.description}}</p>
+            <div class="grid grid-2">
+                <div><span class="muted">Entidad</span><br>{{selected.entityType}} {{selected.entityReference}}</div>
+                <div><span class="muted">Hash de integridad</span><br><small
+                        class="mono">{{selected.integrityHash}}</small></div>
+            </div>
+            <h4>Valores anteriores</h4>
+            <pre
+                style="white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:8px">{{selected.oldValues||'—'}}</pre>
+            <h4>Valores nuevos</h4>
+            <pre
+                style="white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:8px">{{selected.newValues||'—'}}</pre>
+        </div>
+    </div>
+</div>

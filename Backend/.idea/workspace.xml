@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="9837515c-9fe1-43f4-8b43-1a432ae195f5" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-00 General del Sistema V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-00 General del Sistema V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-01_Iniciar Sesion V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-01_Iniciar Sesion V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-02 Registrar Queja, Reclamo, Denuncia o Sugerencia V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-02 Registrar Queja, Reclamo, Denuncia o Sugerencia V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-03 Consultar Estado del Caso V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-03 Consultar Estado del Caso V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-04 Administrar Casos V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-04 Administrar Casos V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-05 Asignar Responsable V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-05 Asignar Responsable V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-06 Registrar Seguimiento V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-06 Registrar Seguimiento V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-07 Adjuntar Evidencias V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-07 Adjuntar Evidencias V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-08 Cerrar Caso V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-08 Cerrar Caso V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-09 Administrar Usuarios V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-09 Administrar Usuarios V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-10 Administrar Roles y Permisos V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-10 Administrar Roles y Permisos V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-11 Administrar Sucursales V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-11 Administrar Sucursales V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-12 Generar Reportes V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-12 Generar Reportes V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-13 Consultar Bitacora de Auditoria V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-13 Consultar Bitacora de Auditoria V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/CU-14 Administrar Notificaciones V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/CU-14 Administrar Notificaciones V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/Reglas de Negocio V1.0.docx" beforeDir="false" afterPath="$PROJECT_DIR$/../Casos de Uso/Reglas de Negocio V1.0.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Casos de Uso/~$glas de Negocio V1.0.docx" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "Neftali348"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/Neftali348/Analisis-de-sistemas-ll.git",
+    "accountId": "05686795-716d-4a4c-b7e3-b757f27c6989"
+  }
+}]]></component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="3HtJWuTFgtzDpJ73ZZEVNLI47GZ" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "Spring Boot.AplicacionSgq.executor": "Run",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration name="AplicacionSgq" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="sgq-backend" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.umg.sgq.AplicacionSgq" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-84258761d1cc-intellij.indexing.shared.core-IU-243.28141.18" />
+        <option value="bundled-js-predefined-d6986cc7102b-1632447f56bf-JavaScript-IU-243.28141.18" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="9837515c-9fe1-43f4-8b43-1a432ae195f5" name="Changes" comment="" />
+      <created>1786681467396</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1786681467396</updated>
+      <workItem from="1786681468560" duration="5565000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/main/java/com/umg/sgq/servicio/ServicioAutenticacion.java</url>
+          <line>64</line>
+          <option name="temporary" value="true" />
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>

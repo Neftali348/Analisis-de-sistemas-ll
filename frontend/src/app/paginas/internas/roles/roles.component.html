@@ -1,0 +1,80 @@
+<div class="page">
+      <div class="page-head">
+        <div>
+          <h1>Roles y permisos</h1>
+
+          <p>
+            RN01: cuatro roles protegidos. No existe opción para crear un quinto
+            rol.
+          </p>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <strong>Regla aplicada:</strong>
+        AGENTE_ATENCION, SUPERVISOR, ADMINISTRADOR y AUDITOR. El Auditor conserva
+        acceso de consulta y nunca recibe permisos operativos de modificación.
+      </div>
+
+      <div *ngIf="error" class="alert alert-error">
+        {{ error }}
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card" *ngFor="let r of roles">
+          <div class="split">
+            <div>
+              <h3 style="margin: 0">
+                {{ label(r.code) }}
+              </h3>
+
+              <p class="muted">
+                {{ r.description }}
+              </p>
+            </div>
+
+            <span
+              class="badge"
+              [class.green]="r.active"
+              [class.red]="!r.active"
+            >
+              {{ r.active ? 'ACTIVO' : 'INACTIVO' }}
+            </span>
+          </div>
+
+          <div class="grid grid-2">
+            <label
+              class="checkbox"
+              *ngFor="let p of allowed[r.code]"
+            >
+              <input
+                type="checkbox"
+                [checked]="has(r, p)"
+                (change)="toggle(r, p, $event)"
+              />
+
+              <span>
+                {{ label(p) }}
+              </span>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button
+              class="btn btn-primary"
+              (click)="save(r)"
+            >
+              Guardar permisos
+            </button>
+
+            <button
+              *ngIf="r.code !== 'ADMINISTRADOR'"
+              class="btn btn-outline"
+              (click)="setActive(r, !r.active)"
+            >
+              {{ r.active ? 'Inactivar' : 'Activar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>

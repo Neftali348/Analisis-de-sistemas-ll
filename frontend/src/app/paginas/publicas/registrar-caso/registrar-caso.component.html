@@ -1,0 +1,25 @@
+<div class="public-shell"><div class="public-card"><div class="public-top"><a routerLink="/" class="brand"><div class="brand-mark">SG</div> Registro de caso</a><a routerLink="/consultar" class="btn btn-outline">Consultar caso</a></div><div class="inner">
+ <div *ngIf="created" class="alert alert-success"><h2 style="margin-top:0">Caso registrado</h2><p>Tu código de seguimiento es <strong class="mono">{{created.code}}</strong>.</p><p *ngIf="created.trackingKey">Como registraste de forma anónima, guarda también esta clave temporal: <strong class="mono">{{created.trackingKey}}</strong>. Se muestra una sola vez.</p><a routerLink="/consultar" class="btn btn-primary">Consultar seguimiento</a></div>
+ <ng-container *ngIf="!created"><div class="page-head"><div><h1>Registrar queja, reclamo, denuncia o sugerencia</h1><p>Completa los datos. Los campos marcados son necesarios para dar seguimiento.</p></div></div>
+ <div *ngIf="error" class="alert alert-error">{{error}}</div>
+ <form (ngSubmit)="submit()"><div class="grid grid-2">
+  <div class="field"><label>Tipo *</label><select [(ngModel)]="form.type" name="type" required><option value="QUEJA">Queja</option><option value="RECLAMO">Reclamo</option><option value="DENUNCIA">Denuncia</option><option value="SUGERENCIA">Sugerencia</option></select></div>
+  <div class="field"><label>Categoría *</label><select [(ngModel)]="form.category" name="category" required><option *ngFor="let x of categories" [value]="x">{{label(x)}}</option></select></div>
+  <div class="field"><label>Sucursal *</label><select [(ngModel)]="form.branchId" name="branchId" required><option [ngValue]="null">Seleccione...</option><option *ngFor="let b of branches" [ngValue]="b.id">{{b.name}}</option></select></div>
+  <div class="field"><label>Fecha y hora del incidente *</label><input type="datetime-local" [(ngModel)]="form.incidentAt" name="incidentAt" [max]="maxNow" required></div>
+ </div>
+ <div class="checkbox" style="margin:18px 0"><input id="anon" type="checkbox" [(ngModel)]="form.anonymous" name="anonymous"><label for="anon"><strong>Registrar de forma anónima</strong></label></div>
+ <div class="checkbox" *ngIf="form.type==='DENUNCIA'" style="margin-bottom:18px"><input id="conf" type="checkbox" [(ngModel)]="form.confidential" name="confidential"><label for="conf">Marcar denuncia como confidencial</label></div>
+ <div *ngIf="!form.anonymous" class="grid grid-3">
+  <div class="field"><label>Nombre completo *</label><input [(ngModel)]="form.fullName" name="fullName" placeholder="Nombre y apellido"></div>
+  <div class="field"><label>Correo electrónico *</label><input type="email" [(ngModel)]="form.email" name="email"></div>
+  <div class="field"><label>Teléfono</label><input [(ngModel)]="form.phone" name="phone" inputmode="numeric" maxlength="15"></div>
+ </div>
+ <div class="field" style="margin-top:16px"><label>No. de orden/factura</label><input [(ngModel)]="form.orderNumber" name="orderNumber" maxlength="30"></div>
+ <div class="field" style="margin-top:16px"><label>Descripción detallada * (20 a 3000 caracteres)</label><textarea [(ngModel)]="form.description" name="description" minlength="20" maxlength="3000" required></textarea><span class="hint">{{form.description.length}} / 3000</span></div>
+ <div class="field" style="margin-top:16px"><label>Evidencias (opcional)</label><input type="file" multiple accept=".jpg,.jpeg,.png,.pdf" (change)="pickFiles($event)"><span class="hint">Máximo 5 archivos; JPG/JPEG/PNG/PDF; 2 MB por archivo.</span><div class="file-list"><div *ngFor="let f of files" class="file-item"><span>{{f.name}}</span><span>{{formatBytes(f.size)}}</span></div></div></div>
+ <div class="checkbox" style="margin-top:18px"><input id="contact" type="checkbox" [(ngModel)]="form.contactAuthorized" name="contactAuthorized"><label for="contact">Autorizo contacto para ampliar información.</label></div>
+ <div class="checkbox" style="margin-top:12px"><input id="privacy" type="checkbox" [(ngModel)]="form.privacyAccepted" name="privacyAccepted" required><label for="privacy">He leído y acepto el aviso de privacidad. *</label></div>
+ <div class="form-actions"><a routerLink="/" class="btn btn-secondary">Cancelar</a><button class="btn btn-primary" [disabled]="loading">{{loading?'Registrando...':'Registrar caso'}}</button></div>
+ </form></ng-container>
+ </div></div></div>

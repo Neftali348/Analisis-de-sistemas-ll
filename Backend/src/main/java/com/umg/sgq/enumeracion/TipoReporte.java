@@ -1,0 +1,2 @@
+package com.umg.sgq.enumeracion;
+public enum TipoReporte { CASOS_REGISTRADOS, TIEMPOS_ATENCION, CASOS_RESPONSABLE, CASOS_SUCURSAL, SATISFACCION, AUDITORIA }

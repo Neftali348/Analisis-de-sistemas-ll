@@ -1,0 +1,20 @@
+<div class="public-shell">
+    <div class="public-card" style="max-width:560px">
+        <div class="inner">
+            <div class="brand">
+                <div class="brand-mark">SG</div> Cambio obligatorio de contraseña
+            </div>
+            <h1>Proteja su cuenta</h1>
+            <p class="muted">La contraseña temporal debe cambiarse antes de continuar.</p>
+            <div *ngIf="error" class="alert alert-error">{{error}}</div>
+            <div class="field"><label>Contraseña actual</label><input type="password" [(ngModel)]="currentPassword">
+            </div>
+            <div class="field" style="margin-top:12px"><label>Nueva contraseña</label><input type="password"
+                    [(ngModel)]="newPassword"><span class="hint">Mínimo 8 caracteres, mayúscula, minúscula, número y
+                    carácter especial.</span></div>
+            <div class="field" style="margin-top:12px"><label>Confirmar nueva contraseña</label><input type="password"
+                    [(ngModel)]="confirmPassword"></div>
+            <div class="form-actions"><button class="btn btn-primary" (click)="save()">Cambiar contraseña</button></div>
+        </div>
+    </div>
+</div>
