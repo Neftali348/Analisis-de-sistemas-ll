@@ -1,75 +1,215 @@
-<div class="public-shell">
-    <div class="public-card" style="max-width:520px">
+<div class="login-page">
 
-        <div class="public-top">
-            <a routerLink="/" class="brand">
-                <div class="brand-mark">SG</div>
-                SGQ
-            </a>
-        </div>
-
-        <div class="inner">
-
-            <h1>Iniciar Sesion</h1>
-
-            <p class="muted">
-                Disponible únicamente para los cuatro roles autorizados.
-            </p>
-
-            <!-- Mensaje de error -->
-            <div *ngIf="error" class="alert alert-error">
-                {{ error }}
+    <main class="login-section">
+  
+      <div class="login-container">
+  
+        <!-- LOGO -->
+        <a routerLink="/" class="company-brand">
+  
+          <div class="company-logo">
+            SGQ
+          </div>
+  
+          <div class="company-name">
+            <strong>SGQ Food</strong>
+            <span>Sistema de Gestión de Quejas</span>
+          </div>
+  
+        </a>
+  
+  
+        <!-- VOLVER -->
+        <a routerLink="/" class="back-link">
+          <span>←</span>
+          Volver al inicio
+        </a>
+  
+  
+        <!-- TARJETA -->
+        <div class="login-card">
+  
+          <div class="login-header">
+  
+  
+            <h1>
+              Iniciar sesión
+            </h1>
+  
+  
+          </div>
+  
+  
+          <!-- ERROR -->
+          <div
+            *ngIf="error"
+            class="error-alert">
+  
+            <div class="error-symbol">
+              !
             </div>
-
-            <form (ngSubmit)="login()" novalidate>
-
-                <div class="field">
-                    <label>Usuario *</label>
-
-                    <input [(ngModel)]="username" name="username" autocomplete="username" [class.campo-error]="
-            intentoIngresar && !username.trim()
-        ">
-                </div>
-
-                <div class="field" style="margin-top:14px">
-
-                    <label>Contraseña *</label>
-
-                    <input [(ngModel)]="password" name="password" [type]="mostrarContrasena ? 'text' : 'password'"
-                        autocomplete="current-password" [class.campo-error]="
-            intentoIngresar && !password
-        ">
-
-                    <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px"
-                        (click)="mostrarContrasena = !mostrarContrasena">
-
-                        {{
-                        mostrarContrasena
-                        ? 'Ocultar contraseña'
-                        : 'Mostrar contraseña'
-                        }}
-                    </button>
-                </div>
-                <!-- Botón -->
-                <button type="submit" class="btn btn-primary" style="width:100%;margin-top:20px" [disabled]="loading">
-
-                    {{ loading ? 'Ingresando...' : 'Ingresar' }}
-
-                </button>
-
-            </form>
-
-            <!-- Recuperar contraseña -->
-            <div style="text-align:center;margin-top:12px">
-
-                <button type="button" class="btn btn-outline btn-sm" (click)="forgot()">
-
-                    Olvidé mi contraseña
-
-                </button>
+  
+            <span>
+              {{ error }}
+            </span>
+  
+          </div>
+  
+  
+          <form
+            (ngSubmit)="login()"
+            novalidate>
+  
+  
+            <!-- USUARIO -->
+            <div class="form-field">
+  
+              <label for="username">
+                Usuario
+                <span>*</span>
+              </label>
+  
+              <div
+                class="input-box"
+                [class.input-box-error]="
+                  intentoIngresar && !username.trim()
+                ">
+  
+                <span class="input-prefix">
+                  U
+                </span>
+  
+                <input
+                  id="username"
+                  [(ngModel)]="username"
+                  name="username"
+                  type="text"
+                  placeholder="Ingrese su usuario"
+                  autocomplete="username">
+  
+              </div>
+  
+  
+              <small
+                *ngIf="
+                  intentoIngresar &&
+                  !username.trim()
+                "
+                class="field-error">
+  
+                El usuario es obligatorio.
+  
+              </small>
+  
             </div>
-
-
+  
+  
+            <!-- CONTRASEÑA -->
+            <div class="form-field">
+  
+              <label for="password">
+                Contraseña
+                <span>*</span>
+              </label>
+  
+              <div
+                class="input-box"
+                [class.input-box-error]="
+                  intentoIngresar && !password
+                ">
+  
+                <span class="input-prefix">
+                  ●
+                </span>
+  
+                <input
+                  id="password"
+                  [(ngModel)]="password"
+                  name="password"
+                  [type]="
+                    mostrarContrasena
+                      ? 'text'
+                      : 'password'
+                  "
+                  placeholder="Ingrese su contraseña"
+                  autocomplete="current-password">
+  
+  
+                <button
+                  type="button"
+                  class="show-password"
+                  (click)="
+                    mostrarContrasena =
+                      !mostrarContrasena
+                  ">
+  
+                  {{
+                    mostrarContrasena
+                      ? 'Ocultar'
+                      : 'Mostrar'
+                  }}
+  
+                </button>
+  
+              </div>
+  
+  
+              <small
+                *ngIf="
+                  intentoIngresar &&
+                  !password
+                "
+                class="field-error">
+  
+                La contraseña es obligatoria.
+  
+              </small>
+  
+            </div>
+  
+  
+            <!-- OPCIONES -->
+            <div class="login-options">
+  
+        
+  
+              <button
+                type="button"
+                class="forgot-button"
+                (click)="forgot()">
+  
+                ¿Olvidaste tu contraseña?
+  
+              </button>
+  
+            </div>
+  
+  
+            <!-- BOTÓN -->
+            <button
+              type="submit"
+              class="submit-button"
+              [disabled]="loading">
+  
+              <span
+                *ngIf="loading"
+                class="spinner">
+              </span>
+  
+              {{
+                loading
+                  ? 'Ingresando...'
+                  : 'Ingresar al sistema'
+              }}
+  
+            </button>
+  
+          </form>
         </div>
-    </div>
-</div>
+  
+  
+      </div>
+  
+    </main>
+  
+  </div>

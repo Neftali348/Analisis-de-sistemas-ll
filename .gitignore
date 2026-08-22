@@ -1,0 +1,30 @@
+# IntelliJ IDEA
+.idea/
+**/.idea/
+*.iml
+
+# Angular cache
+.angular/
+**/.angular/
+
+# Node
+node_modules/
+**/node_modules/
+
+# Compilación
+dist/
+**/dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# Archivos temporales de Word
+~$*.docx
+**/~$*.docx
+
+# Logs
+*.log
+
+# Windows / macOS
+Thumbs.db
+.DS_Store

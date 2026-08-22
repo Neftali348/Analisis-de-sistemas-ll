@@ -1,20 +1,356 @@
-<div class="public-shell">
-    <div class="public-card" style="max-width:560px">
-        <div class="inner">
-            <div class="brand">
-                <div class="brand-mark">SG</div> Cambio obligatorio de contraseña
+<div class="password-page">
+
+    <main class="password-section">
+  
+      <div class="password-container">
+  
+  
+  
+  
+        <!-- TARJETA -->
+        <div class="password-card">
+  
+  
+          <!-- CABECERA -->
+          <div class="password-header">
+  
+  
+            <h1>
+              Cambio obligatorio de contraseña
+            </h1>
+  
+           
+  
+          </div>
+  
+  
+          <!-- AVISO -->
+          <div class="information-box">
+  
+            <div class="information-icon">
+              !
             </div>
-            <h1>Proteja su cuenta</h1>
-            <p class="muted">La contraseña temporal debe cambiarse antes de continuar.</p>
-            <div *ngIf="error" class="alert alert-error">{{error}}</div>
-            <div class="field"><label>Contraseña actual</label><input type="password" [(ngModel)]="currentPassword">
+  
+            <div>
+  
+              <strong>
+                Cambio requerido
+              </strong>
+  
+              <p>
+                La contraseña temporal debe cambiarse
+                antes de acceder al sistema.
+              </p>
+  
             </div>
-            <div class="field" style="margin-top:12px"><label>Nueva contraseña</label><input type="password"
-                    [(ngModel)]="newPassword"><span class="hint">Mínimo 8 caracteres, mayúscula, minúscula, número y
-                    carácter especial.</span></div>
-            <div class="field" style="margin-top:12px"><label>Confirmar nueva contraseña</label><input type="password"
-                    [(ngModel)]="confirmPassword"></div>
-            <div class="form-actions"><button class="btn btn-primary" (click)="save()">Cambiar contraseña</button></div>
+  
+          </div>
+  
+  
+          <!-- ERROR -->
+          <div
+            *ngIf="error"
+            class="error-alert">
+  
+            <div class="error-symbol">
+              !
+            </div>
+  
+            <span>
+              {{ error }}
+            </span>
+  
+          </div>
+  
+  
+          <!-- FORMULARIO -->
+          <form
+            (ngSubmit)="save()"
+            novalidate>
+  
+  
+            <!-- CONTRASEÑA ACTUAL -->
+            <div class="form-field">
+  
+              <label for="currentPassword">
+  
+                Contraseña actual
+                <span>*</span>
+  
+              </label>
+  
+  
+              <div
+                class="input-box"
+                [class.input-box-error]="
+                  intentoGuardar &&
+                  !currentPassword
+                ">
+  
+                <span class="input-prefix">
+                  ●
+                </span>
+  
+  
+                <input
+                  id="currentPassword"
+                  [(ngModel)]="currentPassword"
+                  name="currentPassword"
+                  [type]="
+                    mostrarActual
+                      ? 'text'
+                      : 'password'
+                  "
+                  placeholder="Ingrese su contraseña actual"
+                  autocomplete="current-password">
+  
+  
+                <button
+                  type="button"
+                  class="show-password"
+                  (click)="
+                    mostrarActual =
+                      !mostrarActual
+                  ">
+  
+                  {{
+                    mostrarActual
+                      ? 'Ocultar'
+                      : 'Mostrar'
+                  }}
+  
+                </button>
+  
+              </div>
+  
+  
+              <small
+                *ngIf="
+                  intentoGuardar &&
+                  !currentPassword
+                "
+                class="field-error">
+  
+                La contraseña actual es obligatoria.
+  
+              </small>
+  
+            </div>
+  
+  
+            <!-- NUEVA CONTRASEÑA -->
+            <div class="form-field">
+  
+              <label for="newPassword">
+  
+                Nueva contraseña
+                <span>*</span>
+  
+              </label>
+  
+  
+              <div
+                class="input-box"
+                [class.input-box-error]="
+                  intentoGuardar &&
+                  !newPassword
+                ">
+  
+                <span class="input-prefix">
+                  ●
+                </span>
+  
+  
+                <input
+                  id="newPassword"
+                  [(ngModel)]="newPassword"
+                  name="newPassword"
+                  [type]="
+                    mostrarNueva
+                      ? 'text'
+                      : 'password'
+                  "
+                  placeholder="Ingrese su nueva contraseña"
+                  autocomplete="new-password">
+  
+  
+                <button
+                  type="button"
+                  class="show-password"
+                  (click)="
+                    mostrarNueva =
+                      !mostrarNueva
+                  ">
+  
+                  {{
+                    mostrarNueva
+                      ? 'Ocultar'
+                      : 'Mostrar'
+                  }}
+  
+                </button>
+  
+              </div>
+  
+  
+              <small
+                *ngIf="
+                  intentoGuardar &&
+                  !newPassword
+                "
+                class="field-error">
+  
+                La nueva contraseña es obligatoria.
+  
+              </small>
+  
+  
+              <div class="password-requirements">
+  
+                <span>
+                  Requisitos de seguridad
+                </span>
+  
+                <ul>
+                  <li>
+                    Mínimo 8 caracteres
+                  </li>
+  
+                  <li>
+                    Una letra mayúscula
+                  </li>
+  
+                  <li>
+                    Una letra minúscula
+                  </li>
+  
+                  <li>
+                    Al menos un número
+                  </li>
+  
+                  <li>
+                    Un carácter especial
+                  </li>
+                </ul>
+  
+              </div>
+  
+            </div>
+  
+  
+            <!-- CONFIRMAR -->
+            <div class="form-field">
+  
+              <label for="confirmPassword">
+  
+                Confirmar nueva contraseña
+                <span>*</span>
+  
+              </label>
+  
+  
+              <div
+                class="input-box"
+                [class.input-box-error]="
+                  intentoGuardar &&
+                  (
+                    !confirmPassword ||
+                    newPassword !== confirmPassword
+                  )
+                ">
+  
+                <span class="input-prefix">
+                  ●
+                </span>
+  
+  
+                <input
+                  id="confirmPassword"
+                  [(ngModel)]="confirmPassword"
+                  name="confirmPassword"
+                  [type]="
+                    mostrarConfirmacion
+                      ? 'text'
+                      : 'password'
+                  "
+                  placeholder="Confirme su nueva contraseña"
+                  autocomplete="new-password">
+  
+  
+                <button
+                  type="button"
+                  class="show-password"
+                  (click)="
+                    mostrarConfirmacion =
+                      !mostrarConfirmacion
+                  ">
+  
+                  {{
+                    mostrarConfirmacion
+                      ? 'Ocultar'
+                      : 'Mostrar'
+                  }}
+  
+                </button>
+  
+              </div>
+  
+  
+              <small
+                *ngIf="
+                  intentoGuardar &&
+                  !confirmPassword
+                "
+                class="field-error">
+  
+                Debe confirmar la nueva contraseña.
+  
+              </small>
+  
+  
+              <small
+                *ngIf="
+                  intentoGuardar &&
+                  confirmPassword &&
+                  newPassword !== confirmPassword
+                "
+                class="field-error">
+  
+                Las contraseñas no coinciden.
+  
+              </small>
+  
+            </div>
+  
+  
+            <!-- BOTÓN -->
+            <button
+              type="submit"
+              class="submit-button"
+              [disabled]="loading">
+  
+              <span
+                *ngIf="loading"
+                class="spinner">
+              </span>
+  
+              {{
+                loading
+                  ? 'Actualizando contraseña...'
+                  : 'Cambiar contraseña'
+              }}
+  
+            </button>
+  
+          </form>
+  
+  
+       
+  
         </div>
-    </div>
-</div>
+  
+      </div>
+  
+    </main>
+  
+  </div>

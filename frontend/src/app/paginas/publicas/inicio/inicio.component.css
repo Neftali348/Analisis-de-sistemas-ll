@@ -994,6 +994,45 @@ html {
   font-size: 10px;
 }
 
+.header-derecha {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.boton-login {
+  min-height: 42px;
+
+  padding: 0 20px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 5px;
+
+  background: var(--azul-principal);
+
+  border: 1px solid var(--azul-principal);
+
+  color: #ffffff;
+
+  text-decoration: none;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  transition: 0.2s;
+}
+
+.boton-login:hover {
+  background: var(--azul-secundario);
+
+  border-color: var(--azul-secundario);
+
+  transform: translateY(-1px);
+}
+
 
 /* =====================================================
    RESPONSIVE
@@ -1013,6 +1052,13 @@ html {
 
   .hero-contenido {
     max-width: 750px;
+  }
+  .header-derecha {
+    gap: 0;
+  }
+
+  .boton-login {
+    display: inline-flex;
   }
 
   .beneficios {

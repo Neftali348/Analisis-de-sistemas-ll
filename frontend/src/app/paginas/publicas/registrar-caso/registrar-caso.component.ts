@@ -56,21 +56,6 @@ export class ComponenteRegistrarCaso implements OnInit {
   // DESCRIPCIÓN DE LOS TIPOS
   // =========================================================
 
-  readonly descripcionesTipo:
-    Record<string, string> = {
-
-      QUEJA:
-        'Expresa una inconformidad relacionada con la atención, producto o servicio recibido.',
-
-      RECLAMO:
-        'Solicita la revisión o corrección de una situación que afectó al cliente.',
-
-      DENUNCIA:
-        'Permite informar una situación que requiere investigación y puede manejarse de forma confidencial.',
-
-      SUGERENCIA:
-        'Permite proponer una mejora relacionada con la atención, productos, instalaciones o servicios.'
-    };
 
   form: any = {
 
@@ -171,12 +156,7 @@ export class ComponenteRegistrarCaso implements OnInit {
       .replaceAll('_', ' ');
   }
 
-  get descripcionTipo(): string {
-
-    return this.descripcionesTipo[
-      this.form.type
-    ] ?? '';
-  }
+ 
 
   get sucursalSeleccionada():
     Sucursal | undefined {
