@@ -77,29 +77,85 @@ public class ServicioNotificaciones {
 
     @Transactional
     public Notificacion trySend(Notificacion n) {
+
         n.setAttempts(n.getAttempts() + 1);
+
+        /*
+         * Si el correo está deshabilitado en desarrollo,
+         * no fingimos que fue entregado realmente.
+         */
         if (!mailEnabled) {
-            n.setStatus(EstadoNotificacion.ENVIADO);
-            n.setSentAt(LocalDateTime.now());
-            n.setLastError("Correo deshabilitado en desarrollo; evento registrado");
+
+            n.setStatus(EstadoNotificacion.PENDIENTE);
+
+            n.setLastError(
+                    "Servicio de correo deshabilitado."
+            );
+
             return notifications.save(n);
         }
+
         try {
-            JavaMailSender sender = mailProvider.getIfAvailable();
-            if (sender == null) throw new IllegalStateException("Proveedor de correo no configurado");
-            SimpleMailMessage m = new SimpleMailMessage();
-            m.setFrom(from);
-            m.setTo(n.getRecipient());
-            m.setSubject(n.getSubject());
-            m.setText(n.getContent());
-            sender.send(m);
-            n.setStatus(EstadoNotificacion.ENTREGADO);
-            n.setSentAt(LocalDateTime.now());
+
+            JavaMailSender sender =
+                    mailProvider.getIfAvailable();
+
+            if (sender == null) {
+
+                throw new IllegalStateException(
+                        "Proveedor de correo no configurado"
+                );
+            }
+
+            SimpleMailMessage mensaje =
+                    new SimpleMailMessage();
+
+            mensaje.setFrom(from);
+
+            mensaje.setTo(
+                    n.getRecipient()
+            );
+
+            mensaje.setSubject(
+                    n.getSubject()
+            );
+
+            mensaje.setText(
+                    n.getContent()
+            );
+
+            sender.send(mensaje);
+
+            n.setStatus(
+                    EstadoNotificacion.ENTREGADO
+            );
+
+            n.setSentAt(
+                    LocalDateTime.now()
+            );
+
             n.setLastError(null);
-        } catch (Exception e) {
-            n.setStatus(n.getAttempts() < 3 ? EstadoNotificacion.REINTENTANDO : EstadoNotificacion.FALLIDO);
-            n.setLastError(safe(e.getMessage()));
+
+        }catch (Exception e) {
+
+            System.err.println("==========================================");
+            System.err.println("ERROR ENVIANDO CORREO");
+            System.err.println("Destinatario: " + n.getRecipient());
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
+            System.err.println("==========================================");
+
+            n.setStatus(
+                    n.getAttempts() < 3
+                            ? EstadoNotificacion.REINTENTANDO
+                            : EstadoNotificacion.FALLIDO
+            );
+
+            n.setLastError(
+                    safe(e.getMessage())
+            );
         }
+
         return notifications.save(n);
     }
 

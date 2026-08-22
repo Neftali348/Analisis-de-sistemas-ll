@@ -1,3 +1,55 @@
-<div class="page"><div class="page-head"><div><h1>Dashboard</h1><p>Resumen operativo según el alcance de {{auth.session?.role?.replaceAll('_',' ')}}.</p></div><a *ngIf="auth.has('CASE_VIEW')" routerLink="/app/casos" class="btn btn-primary">Ver casos</a></div>
-<div *ngIf="error" class="alert alert-error">{{error}}</div><div class="grid grid-4"><div class="stat"><div class="label">Total de casos</div><div class="value">{{data?.total??0}}</div></div><div class="stat"><div class="label">Casos abiertos</div><div class="value">{{data?.open??0}}</div></div><div class="stat"><div class="label">Sin asignar</div><div class="value">{{data?.unassigned??0}}</div></div><div class="stat"><div class="label">SLA vencido</div><div class="value">{{data?.slaBreached??0}}</div></div></div>
-<div class="grid grid-2" style="margin-top:18px"><div class="card"><h3>Por estado</h3><div class="table-wrap"><table class="table" style="min-width:0"><tbody><tr *ngFor="let x of entries(data?.byStatus)"><td>{{x[0].replaceAll('_',' ')}}</td><td><strong>{{x[1]}}</strong></td></tr></tbody></table></div></div><div class="card"><h3>Por prioridad</h3><div class="table-wrap"><table class="table" style="min-width:0"><tbody><tr *ngFor="let x of entries(data?.byPriority)"><td>{{x[0]}}</td><td><strong>{{x[1]}}</strong></td></tr></tbody></table></div></div></div></div>
+<div class="page">
+    <div class="page-head">
+        <div>
+            <h1>Dashboard</h1>
+            <p>Resumen operativo según el alcance de {{auth.session?.role?.replaceAll('_',' ')}}.</p>
+        </div><a *ngIf="auth.has('CASE_VIEW')" routerLink="/app/casos" class="btn btn-primary">Ver casos</a>
+    </div>
+    <div *ngIf="error" class="alert alert-error">{{error}}</div>
+    <div class="grid grid-4">
+        <div class="stat">
+            <div class="label">Total de casos</div>
+            <div class="value">{{data?.total??0}}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Casos abiertos</div>
+            <div class="value">{{data?.open??0}}</div>
+        </div>
+        <div class="stat">
+            <div class="label">Sin asignar</div>
+            <div class="value">{{data?.unassigned??0}}</div>
+        </div>
+        <div class="stat">
+            <div class="label">SLA vencido</div>
+            <div class="value">{{data?.slaBreached??0}}</div>
+        </div>
+    </div>
+    <div class="grid grid-2" style="margin-top:18px">
+        <div class="card">
+            <h3>Por estado</h3>
+            <div class="table-wrap">
+                <table class="table" style="min-width:0">
+                    <tbody>
+                        <tr *ngFor="let x of entries(data?.byStatus)">
+                            <td>{{x[0].replaceAll('_',' ')}}</td>
+                            <td><strong>{{x[1]}}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h3>Por prioridad</h3>
+            <div class="table-wrap">
+                <table class="table" style="min-width:0">
+                    <tbody>
+                        <tr *ngFor="let x of entries(data?.byPriority)">
+                            <td>{{x[0]}}</td>
+                            <td><strong>{{x[1]}}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

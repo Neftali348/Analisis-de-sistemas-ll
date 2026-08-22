@@ -18,29 +18,48 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
   servlet:
     multipart:
       max-file-size: 2MB
       max-request-size: 12MB
+
   mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:1025}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
     username: ${MAIL_USER:}
     password: ${MAIL_PASSWORD:}
+    protocol: smtp
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_AUTH:true}
+          starttls:
+            enable: ${MAIL_STARTTLS:true}
+            required: ${MAIL_STARTTLS:true}
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
+
   jwt:
     secret: ${JWT_SECRET:SGQ-2026-CLAVE-DE-DESARROLLO-CAMBIAR-EN-PRODUCCION-1234567890}
     absolute-expiration-hours: 8
+
   security:
     inactivity-minutes: 15
     max-failed-attempts: 5
     lock-minutes: 15
+
   uploads:
     directory: ${UPLOAD_DIR:./data/evidencias}
+
   mail:
     enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:no-reply@sgq.local}
+
   cors:
     origins: ${CORS_ORIGINS:http://localhost:4200}

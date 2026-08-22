@@ -6,66 +6,52 @@
                 <div class="brand-mark">SG</div>
                 SGQ
             </a>
-
-            <a routerLink="/" class="muted">
-                Volver
-            </a>
         </div>
 
         <div class="inner">
 
-            <h1>Acceso interno</h1>
+            <h1>Iniciar Sesion</h1>
 
             <p class="muted">
                 Disponible únicamente para los cuatro roles autorizados.
             </p>
 
             <!-- Mensaje de error -->
-            <div
-                *ngIf="error"
-                class="alert alert-error">
+            <div *ngIf="error" class="alert alert-error">
                 {{ error }}
             </div>
 
-            <form
-                (ngSubmit)="login()"
-                novalidate>
+            <form (ngSubmit)="login()" novalidate>
 
-                <!-- Usuario -->
                 <div class="field">
+                    <label>Usuario *</label>
 
-                    <label>
-                        Usuario
-                    </label>
-
-                    <input
-                        [(ngModel)]="username"
-                        name="username"
-                        autocomplete="username">
+                    <input [(ngModel)]="username" name="username" autocomplete="username" [class.campo-error]="
+            intentoIngresar && !username.trim()
+        ">
                 </div>
 
-                <!-- Contraseña -->
-                <div
-                    class="field"
-                    style="margin-top:14px">
+                <div class="field" style="margin-top:14px">
 
-                    <label>
-                        Contraseña
-                    </label>
+                    <label>Contraseña *</label>
 
-                    <input
-                        [(ngModel)]="password"
-                        name="password"
-                        type="password"
-                        autocomplete="current-password">
+                    <input [(ngModel)]="password" name="password" [type]="mostrarContrasena ? 'text' : 'password'"
+                        autocomplete="current-password" [class.campo-error]="
+            intentoIngresar && !password
+        ">
+
+                    <button type="button" class="btn btn-outline btn-sm" style="margin-top:8px"
+                        (click)="mostrarContrasena = !mostrarContrasena">
+
+                        {{
+                        mostrarContrasena
+                        ? 'Ocultar contraseña'
+                        : 'Mostrar contraseña'
+                        }}
+                    </button>
                 </div>
-
                 <!-- Botón -->
-                <button
-                    type="submit"
-                    class="btn btn-primary"
-                    style="width:100%;margin-top:20px"
-                    [disabled]="loading">
+                <button type="submit" class="btn btn-primary" style="width:100%;margin-top:20px" [disabled]="loading">
 
                     {{ loading ? 'Ingresando...' : 'Ingresar' }}
 
@@ -74,13 +60,9 @@
             </form>
 
             <!-- Recuperar contraseña -->
-            <div
-                style="text-align:center;margin-top:12px">
+            <div style="text-align:center;margin-top:12px">
 
-                <button
-                    type="button"
-                    class="btn btn-outline btn-sm"
-                    (click)="forgot()">
+                <button type="button" class="btn btn-outline btn-sm" (click)="forgot()">
 
                     Olvidé mi contraseña
 

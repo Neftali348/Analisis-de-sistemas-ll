@@ -28,6 +28,18 @@ public class ControladorAutenticacion {
         auth.logout(req);
         return Map.of("message", "Sesión cerrada correctamente.");
     }
+    @PostMapping("/expire")
+    public Map<String, String> expire(
+            HttpServletRequest req
+    ) {
+
+        auth.expirarSesion(req);
+
+        return Map.of(
+                "message",
+                "Sesión expirada por inactividad."
+        );
+    }
 
     @PostMapping("/touch")
     public Map<String, String> touch() {
@@ -35,8 +47,35 @@ public class ControladorAutenticacion {
     }
 
     @PostMapping("/forgot-password")
-    public Map<String, String> forgot(@Valid @RequestBody SolicitudRecuperarContrasena r) {
-        return Map.of("message", auth.forgotPassword(r));
+    public Map<String, String> forgot(
+            @Valid
+            @RequestBody
+            SolicitudRecuperarContrasena r,
+            HttpServletRequest req
+    ) {
+
+        return Map.of(
+                "message",
+                auth.forgotPassword(r, req)
+        );
+    }
+
+    @PostMapping("/access-denied")
+    public Map<String, String> accesoDenegado(
+            @RequestBody Map<String, String> datos,
+            HttpServletRequest req
+    ) {
+
+        auth.registrarAccesoDenegado(
+                datos.get("permission"),
+                datos.get("route"),
+                req
+        );
+
+        return Map.of(
+                "message",
+                "Intento registrado."
+        );
     }
 
     @PostMapping("/reset-password")

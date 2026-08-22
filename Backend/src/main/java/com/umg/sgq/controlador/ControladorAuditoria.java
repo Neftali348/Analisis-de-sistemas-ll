@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -49,6 +50,7 @@ public class ControladorAuditoria {
             @RequestParam(required = false) String ip,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size,
+            @RequestParam(defaultValue = "false") boolean autoRefresh,
             HttpServletRequest peticion
     ) {
 
@@ -174,31 +176,48 @@ public class ControladorAuditoria {
             );
         }
 
-        // =====================================================
+        // =========================================================
         // CONSULTAR BASE DE DATOS
-        // =====================================================
+        // Orden: más reciente → más antiguo
+        // =========================================================
 
         Page<RegistroAuditoria> datos =
                 repositorio.findAll(
                         filtros,
-                        PageRequest.of(page, size)
+                        PageRequest.of(
+                                page,
+                                size,
+                                Sort.by(
+                                        Sort.Direction.DESC,
+                                        "createdAt"
+                                ).and(
+                                        Sort.by(
+                                                Sort.Direction.DESC,
+                                                "id"
+                                        )
+                                )
+                        )
                 );
 
-        // Registrar la consulta en la propia bitácora
-        servicioAuditoria.log(
-                peticion,
-                "BITACORA",
-                "CONSULTA",
-                "BITACORA",
-                null,
-                "Consulta de bitácora de auditoría",
-                ResultadoAuditoria.EXITOSO,
-                null,
-                Map.of(
-                        "desde", fechaDesde.toString(),
-                        "hasta", fechaHasta.toString()
-                )
-        );
+// Registrar únicamente consultas manuales.
+// Los refrescos automáticos NO generan auditoría.
+        if (!autoRefresh) {
+
+            servicioAuditoria.log(
+                    peticion,
+                    "BITACORA",
+                    "CONSULTA",
+                    "BITACORA",
+                    null,
+                    "Consulta manual de bitácora de auditoría",
+                    ResultadoAuditoria.EXITOSO,
+                    null,
+                    Map.of(
+                            "desde", fechaDesde.toString(),
+                            "hasta", fechaHasta.toString()
+                    )
+            );
+        }
 
         // =====================================================
         // RESPUESTA PARA ANGULAR

@@ -64,19 +64,14 @@ public class ServicioAutenticacion {
         LocalDateTime ahora = LocalDateTime.now();
 
         // =========================================================
-        // FA02 - EL USUARIO NO EXISTE
+        // FA02 - USUARIO NO EXISTE
         // =========================================================
         if (usuario == null) {
 
-            /*
-             * RN18 / RN19
-             * Registrar el intento fallido.
-             * NUNCA registrar la contraseña.
-             */
             audit.logActor(
                     peticion,
                     nombreUsuario,
-                    "PUBLICO",
+                    "NO_AUTENTICADO",
                     "AUTENTICACION",
                     "INTENTO_FALLIDO",
                     "USUARIO",
@@ -91,7 +86,7 @@ public class ServicioAutenticacion {
         }
 
         // =========================================================
-        // FA03 - CUENTA ACTUALMENTE BLOQUEADA
+        // FA03 - CUENTA BLOQUEADA
         // =========================================================
         if (
                 usuario.getLockedUntil() != null
@@ -101,12 +96,14 @@ public class ServicioAutenticacion {
             audit.logActor(
                     peticion,
                     usuario.getUsername(),
-                    usuario.getRole().getCode().name(),
+                    usuario.getRole() != null
+                            ? usuario.getRole().getCode().name()
+                            : "SIN_ROL",
                     "AUTENTICACION",
                     "INTENTO_BLOQUEADO",
                     "USUARIO",
                     usuario.getId().toString(),
-                    "Intento de acceso a una cuenta bloqueada temporalmente",
+                    "Intento de acceso a cuenta bloqueada temporalmente",
                     ResultadoAuditoria.FALLIDO
             );
 
@@ -114,9 +111,33 @@ public class ServicioAutenticacion {
                     "El usuario se encuentra inactivo o bloqueado."
             );
         }
+        // =========================================================
+// FA04 - ROL SIN PERMISOS
+// =========================================================
+        if (
+                usuario.getRole().getPermissions() == null
+                        || usuario.getRole().getPermissions().isEmpty()
+        ) {
+
+            audit.logActor(
+                    peticion,
+                    usuario.getUsername(),
+                    usuario.getRole().getCode().name(),
+                    "AUTENTICACION",
+                    "ACCESO_DENEGADO",
+                    "USUARIO",
+                    usuario.getId().toString(),
+                    "Usuario sin permisos de acceso",
+                    ResultadoAuditoria.FALLIDO
+            );
+
+            throw new IllegalArgumentException(
+                    "El usuario no posee permisos de acceso."
+            );
+        }
 
         // =========================================================
-        // EL BLOQUEO DE 15 MINUTOS YA VENCIÓ
+        // SI EL BLOQUEO DE 15 MINUTOS YA TERMINÓ
         // =========================================================
         if (
                 usuario.getLockedUntil() != null
@@ -126,31 +147,57 @@ public class ServicioAutenticacion {
             usuario.setLockedUntil(null);
             usuario.setFailedAttempts(0);
 
-            users.save(usuario);
+            users.saveAndFlush(usuario);
         }
 
         // =========================================================
-        // FA03 - USUARIO O ROL INACTIVO
+        // FA03 - USUARIO INACTIVO
+        // =========================================================
+        if (usuario.getStatus() != EstadoRegistro.ACTIVO) {
+
+            audit.logActor(
+                    peticion,
+                    usuario.getUsername(),
+                    usuario.getRole() != null
+                            ? usuario.getRole().getCode().name()
+                            : "SIN_ROL",
+                    "AUTENTICACION",
+                    "ACCESO_DENEGADO",
+                    "USUARIO",
+                    usuario.getId().toString(),
+                    "Intento de acceso de usuario inactivo",
+                    ResultadoAuditoria.FALLIDO
+            );
+
+            throw new IllegalArgumentException(
+                    "El usuario se encuentra inactivo o bloqueado."
+            );
+        }
+
+        // =========================================================
+        // FA04 - SIN ROL O ROL INACTIVO
         // =========================================================
         if (
-                usuario.getStatus() != EstadoRegistro.ACTIVO
+                usuario.getRole() == null
                         || !usuario.getRole().isActive()
         ) {
 
             audit.logActor(
                     peticion,
                     usuario.getUsername(),
-                    usuario.getRole().getCode().name(),
+                    usuario.getRole() != null
+                            ? usuario.getRole().getCode().name()
+                            : "SIN_ROL",
                     "AUTENTICACION",
-                    "INTENTO_BLOQUEADO",
+                    "ACCESO_DENEGADO",
                     "USUARIO",
                     usuario.getId().toString(),
-                    "Intento de acceso a usuario o rol inactivo",
+                    "Usuario sin rol válido o rol inactivo",
                     ResultadoAuditoria.FALLIDO
             );
 
             throw new IllegalArgumentException(
-                    "El usuario se encuentra inactivo o bloqueado."
+                    "El usuario no posee permisos de acceso."
             );
         }
 
@@ -169,7 +216,7 @@ public class ServicioAutenticacion {
 
             usuario.setFailedAttempts(intentos);
 
-            // Registrar siempre el intento fallido
+            // Registrar intento fallido
             audit.logActor(
                     peticion,
                     usuario.getUsername(),
@@ -178,27 +225,33 @@ public class ServicioAutenticacion {
                     "INTENTO_FALLIDO",
                     "USUARIO",
                     usuario.getId().toString(),
-                    "Intento fallido de inicio de sesión",
+                    "Intento fallido de inicio de sesión. Intento "
+                            + intentos
+                            + " de "
+                            + maxAttempts,
                     ResultadoAuditoria.FALLIDO
             );
 
             // =====================================================
-            // RN21 - CINCO INTENTOS FALLIDOS
+            // RN21 - BLOQUEAR DESPUÉS DEL QUINTO INTENTO
             // =====================================================
             if (intentos >= maxAttempts) {
 
+                /*
+                 * IMPORTANTE:
+                 * NO lo regreses a cero aquí.
+                 *
+                 * Déjalo en 5 para saber por qué
+                 * la cuenta quedó bloqueada.
+                 */
                 usuario.setFailedAttempts(maxAttempts);
 
                 usuario.setLockedUntil(
                         ahora.plusMinutes(lockMinutes)
                 );
 
-                users.save(usuario);
+                users.saveAndFlush(usuario);
 
-                /*
-                 * RN18:
-                 * El bloqueo también debe quedar registrado.
-                 */
                 audit.logActor(
                         peticion,
                         usuario.getUsername(),
@@ -207,21 +260,20 @@ public class ServicioAutenticacion {
                         "BLOQUEO",
                         "USUARIO",
                         usuario.getId().toString(),
-                        "Cuenta bloqueada temporalmente durante "
+                        "Cuenta bloqueada durante "
                                 + lockMinutes
-                                + " minutos después de "
+                                + " minutos por alcanzar "
                                 + maxAttempts
                                 + " intentos fallidos consecutivos",
                         ResultadoAuditoria.FALLIDO
                 );
 
-                // FA02 continúa con FA03
                 throw new IllegalArgumentException(
                         "El usuario se encuentra inactivo o bloqueado."
                 );
             }
 
-            users.save(usuario);
+            users.saveAndFlush(usuario);
 
             throw new IllegalArgumentException(
                     "Usuario o contraseña incorrectos."
@@ -232,24 +284,26 @@ public class ServicioAutenticacion {
         // LOGIN CORRECTO
         // =========================================================
 
+        /*
+         * Flujo normal paso 12:
+         * reiniciar contador después de autenticación exitosa.
+         */
         usuario.setFailedAttempts(0);
         usuario.setLockedUntil(null);
+
         usuario.setLastLoginAt(ahora);
         usuario.setLastActivityAt(ahora);
 
-        users.save(usuario);
+        users.saveAndFlush(usuario);
+
+        // =========================================================
+        // RN18/RN19 - LOGIN EXITOSO
+        // =========================================================
 
         /*
-         * IMPORTANTE:
-         *
-         * Aquí usamos logActor() y no log().
-         *
-         * En este instante todavía no existe el JWT en el
-         * SecurityContext, por eso log() podía guardar:
-         *
-         * ANÓNIMO / PUBLICO
-         *
-         * aunque realmente estuviera entrando admin.
+         * Usar logActor y no log porque en este momento
+         * todavía no se ha instalado el JWT en el contexto
+         * de Spring Security.
          */
         audit.logActor(
                 peticion,
@@ -269,9 +323,7 @@ public class ServicioAutenticacion {
                         .stream()
                         .map(
                                 permiso ->
-                                        permiso
-                                                .getCode()
-                                                .name()
+                                        permiso.getCode().name()
                         )
                         .collect(Collectors.toSet());
 
@@ -280,7 +332,6 @@ public class ServicioAutenticacion {
                         usuario.getUsername(),
                         usuario.getCredentialVersion()
                 ),
-
                 usuario.getId(),
                 usuario.getFullName(),
                 usuario.getUsername(),
@@ -301,22 +352,83 @@ public class ServicioAutenticacion {
     }
 
     @Transactional
-    public void logout(HttpServletRequest req) {
-        audit.log(
-                req,
+    public void logout(HttpServletRequest peticion) {
+
+        Usuario usuario = current.require();
+
+        // Invalida todos los JWT emitidos con la versión anterior.
+        usuario.setCredentialVersion(
+                usuario.getCredentialVersion() + 1
+        );
+
+        usuario.setLastActivityAt(null);
+
+        users.saveAndFlush(usuario);
+
+        audit.logActor(
+                peticion,
+                usuario.getUsername(),
+                usuario.getRole().getCode().name(),
                 "AUTENTICACION",
                 "CIERRE_SESION",
-                "SESION",
-                null,
+                "USUARIO",
+                usuario.getId().toString(),
                 "Cierre de sesión",
-                ResultadoAuditoria.EXITOSO,
-                null,
-                null
+                ResultadoAuditoria.EXITOSO
         );
     }
 
     @Transactional
-    public String forgotPassword(SolicitudRecuperarContrasena r) {
+    public void expirarSesion(HttpServletRequest peticion) {
+
+        Usuario usuario = current.require();
+
+        usuario.setCredentialVersion(
+                usuario.getCredentialVersion() + 1
+        );
+
+        usuario.setLastActivityAt(null);
+
+        users.saveAndFlush(usuario);
+
+        audit.logActor(
+                peticion,
+                usuario.getUsername(),
+                usuario.getRole().getCode().name(),
+                "AUTENTICACION",
+                "EXPIRACION",
+                "SESION",
+                usuario.getId().toString(),
+                "Sesión expirada por 15 minutos de inactividad",
+                ResultadoAuditoria.EXITOSO
+        );
+    }
+    @Transactional
+    public void registrarAccesoDenegado(
+            String permiso,
+            String ruta,
+            HttpServletRequest peticion
+    ) {
+
+        Usuario usuario = current.require();
+
+        audit.logActor(
+                peticion,
+                usuario.getUsername(),
+                usuario.getRole().getCode().name(),
+                "AUTORIZACION",
+                "ACCESO_DENEGADO",
+                "RUTA",
+                ruta == null ? "NO_IDENTIFICADA" : ruta,
+                "Intento de acceso sin permiso requerido: "
+                        + permiso,
+                ResultadoAuditoria.FALLIDO
+        );
+    }
+
+
+    @Transactional
+    public String forgotPassword(SolicitudRecuperarContrasena r, HttpServletRequest req) {
         Usuario u = users.findByUsernameIgnoreCase(r.usernameOrEmail().trim()).orElseGet(() -> users.findByEmailIgnoreCase(r.usernameOrEmail().trim()).orElse(null));
         if (u != null && u.getStatus() == EstadoRegistro.ACTIVO) {
             String token = UtilidadClaveAleatoria.trackingKey();

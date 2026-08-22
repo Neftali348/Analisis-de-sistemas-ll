@@ -28,6 +28,17 @@ export class ServicioPrincipal {
   }
 
   cerrarSesion(): void {
+
+    const confirmar = window.confirm(
+      '¿Está seguro de que desea cerrar sesión?'
+    );
+  
+    // FA11
+    if (!confirmar) {
+      return;
+    }
+  
+    // FA10
     this.autenticacion.logout();
   }
 }

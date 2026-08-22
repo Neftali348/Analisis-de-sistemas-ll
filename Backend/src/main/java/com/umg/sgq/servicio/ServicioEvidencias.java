@@ -37,14 +37,84 @@ public class ServicioEvidencias {
         }
     }
 
-    public void validateCount(Caso c, Seguimiento follow, List<MultipartFile> files) {
-        if (files == null || files.isEmpty()) return;
-        if (files.size() > 5)
-            throw new IllegalArgumentException("Se alcanzó la cantidad máxima de archivos permitidos.");
-        long existing = follow == null ? repo.countByComplaintCaseIdAndFollowUpIsNullAndStatus(c.getId(), EstadoEvidencia.ACTIVA) : repo.countByFollowUpIdAndStatus(follow.getId(), EstadoEvidencia.ACTIVA);
-        if (existing + files.size() > 5)
-            throw new IllegalArgumentException("Se alcanzó la cantidad máxima de archivos permitidos.");
-        files.forEach(security::validate);
+    public void validateCount(
+            Caso c,
+            Seguimiento follow,
+            List<MultipartFile> files
+    ) {
+
+        if (files == null || files.isEmpty()) {
+            return;
+        }
+
+        if (files.size() > 5) {
+            throw new IllegalArgumentException(
+                    "Se alcanzó la cantidad máxima de archivos permitidos."
+            );
+        }
+
+        long existing = follow == null
+                ? repo.countByComplaintCaseIdAndFollowUpIsNullAndStatus(
+                c.getId(),
+                EstadoEvidencia.ACTIVA
+        )
+                : repo.countByFollowUpIdAndStatus(
+                follow.getId(),
+                EstadoEvidencia.ACTIVA
+        );
+
+        if (existing + files.size() > 5) {
+            throw new IllegalArgumentException(
+                    "Se alcanzó la cantidad máxima de archivos permitidos."
+            );
+        }
+
+        for (MultipartFile archivo : files) {
+            security.validate(archivo);
+        }
+    }
+    private void registrarCargaRechazada(
+            Caso caso,
+            List<MultipartFile> archivos,
+            Exception excepcion,
+            HttpServletRequest req
+    ) {
+
+        try {
+
+            String archivo = "NO_IDENTIFICADO";
+
+            if (
+                    archivos != null &&
+                            !archivos.isEmpty()
+            ) {
+
+                archivo =
+                        Optional.ofNullable(
+                                        archivos
+                                                .get(0)
+                                                .getOriginalFilename()
+                                )
+                                .orElse(
+                                        "NO_IDENTIFICADO"
+                                );
+            }
+
+            audit.logRechazoArchivo(
+                    req,
+                    caso.getCode(),
+                    archivo,
+                    excepcion.getMessage()
+            );
+
+        } catch (Exception ignored) {
+
+            /*
+             * Un problema registrando la auditoría
+             * nunca debe ocultar el error original
+             * de la evidencia.
+             */
+        }
     }
 
     @Transactional
@@ -55,54 +125,218 @@ public class ServicioEvidencias {
     }
 
     @Transactional
-    public List<Evidencia> store(Caso c, Seguimiento follow, List<MultipartFile> files, boolean visibleToClient, String description, HttpServletRequest req) {
-        if (files == null || files.isEmpty()) return List.of();
-        if (description != null && description.length() > 500)
-            throw new IllegalArgumentException("La descripción del archivo supera el límite permitido.");
-        validateCount(c, follow, files);
+    public List<Evidencia> store(
+            Caso c,
+            Seguimiento follow,
+            List<MultipartFile> files,
+            boolean visibleToClient,
+            String description,
+            HttpServletRequest req
+    ) {
+
+        if (files == null || files.isEmpty()) {
+            return List.of();
+        }
+
         List<Path> created = new ArrayList<>();
         List<Evidencia> saved = new ArrayList<>();
         Set<String> batchHashes = new HashSet<>();
+
         try {
-            Path caseDir = root.resolve(c.getCode());
-            Files.createDirectories(caseDir);
+
+            if (
+                    description != null &&
+                            description.length() > 500
+            ) {
+                throw new IllegalArgumentException(
+                        "La descripción del archivo supera el límite permitido."
+                );
+            }
+
+            // Aquí quedan:
+            // máximo 5
+            // máximo 2 MB
+            // extensión
+            // MIME
+            // firma
+            // contenido peligroso
+            validateCount(
+                    c,
+                    follow,
+                    files
+            );
+
+            Path caseDir =
+                    root.resolve(c.getCode());
+
+            Files.createDirectories(
+                    caseDir
+            );
+
             for (MultipartFile f : files) {
-                byte[] bytes = f.getBytes();
-                String checksum = UtilidadHash.sha256Bytes(bytes);
-                if (!batchHashes.add(checksum) || repo.existsByComplaintCaseIdAndSha256AndStatus(c.getId(), checksum, EstadoEvidencia.ACTIVA))
-                    throw new IllegalArgumentException("La evidencia ya fue adjuntada al caso.");
-                String original = Optional.ofNullable(f.getOriginalFilename()).orElse("archivo");
-                String ext = original.substring(original.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
-                String stored = UUID.randomUUID() + "." + ext;
-                Path dest = caseDir.resolve(stored).normalize();
-                if (!dest.startsWith(caseDir)) throw new IllegalArgumentException("Nombre de archivo inválido.");
-                Files.write(dest, bytes, StandardOpenOption.CREATE_NEW);
+
+                byte[] bytes =
+                        f.getBytes();
+
+                String checksum =
+                        UtilidadHash.sha256Bytes(
+                                bytes
+                        );
+
+                if (
+                        !batchHashes.add(checksum) ||
+                                repo.existsByComplaintCaseIdAndSha256AndStatus(
+                                        c.getId(),
+                                        checksum,
+                                        EstadoEvidencia.ACTIVA
+                                )
+                ) {
+                    throw new IllegalArgumentException(
+                            "La evidencia ya fue adjuntada al caso."
+                    );
+                }
+
+                String original =
+                        Optional.ofNullable(
+                                f.getOriginalFilename()
+                        ).orElse("archivo");
+
+                String ext =
+                        original
+                                .substring(
+                                        original.lastIndexOf('.') + 1
+                                )
+                                .toLowerCase(
+                                        Locale.ROOT
+                                );
+
+                String stored =
+                        UUID.randomUUID()
+                                + "."
+                                + ext;
+
+                Path dest =
+                        caseDir
+                                .resolve(stored)
+                                .normalize();
+
+                if (
+                        !dest.startsWith(caseDir)
+                ) {
+                    throw new IllegalArgumentException(
+                            "Nombre de archivo inválido."
+                    );
+                }
+
+                Files.write(
+                        dest,
+                        bytes,
+                        StandardOpenOption.CREATE_NEW
+                );
+
                 created.add(dest);
-                Evidencia e = new Evidencia();
+
+                Evidencia e =
+                        new Evidencia();
+
                 e.setComplaintCase(c);
                 e.setFollowUp(follow);
                 e.setUploadedBy(current.orNull());
-                e.setOriginalName(original);
-                e.setStoredName(stored);
-                e.setContentType(f.getContentType());
-                e.setSizeBytes(f.getSize());
-                e.setStoragePath(dest.toString());
-                e.setSha256(checksum);
-                e.setDescription(description == null ? null : description.trim());
-                e.setVisibleToClient(visibleToClient);
-                saved.add(repo.save(e));
-                audit.log(req, "DOCUMENTOS", "CARGA", "CASO", c.getCode(), "Carga de evidencia " + original, ResultadoAuditoria.EXITOSO, null, Map.of("archivo", original, "tamano", f.getSize(), "visibleCliente", visibleToClient));
+
+                e.setOriginalName(
+                        original
+                );
+
+                e.setStoredName(
+                        stored
+                );
+
+                e.setContentType(
+                        f.getContentType()
+                );
+
+                e.setSizeBytes(
+                        f.getSize()
+                );
+
+                e.setStoragePath(
+                        dest.toString()
+                );
+
+                e.setSha256(
+                        checksum
+                );
+
+                e.setDescription(
+                        description == null
+                                ? null
+                                : description.trim()
+                );
+
+                e.setVisibleToClient(
+                        visibleToClient
+                );
+
+                saved.add(
+                        repo.save(e)
+                );
+
+                audit.log(
+                        req,
+                        "DOCUMENTOS",
+                        "CARGA",
+                        "CASO",
+                        c.getCode(),
+                        "Carga de evidencia " + original,
+                        ResultadoAuditoria.EXITOSO,
+                        null,
+                        Map.of(
+                                "archivo",
+                                original,
+                                "tamano",
+                                f.getSize(),
+                                "visibleCliente",
+                                visibleToClient
+                        )
+                );
             }
+
             return saved;
+
         } catch (Exception ex) {
-            created.forEach(p -> {
+
+            // Eliminar archivos físicos que pudieron
+            // haberse creado antes del error.
+            created.forEach(path -> {
+
                 try {
-                    Files.deleteIfExists(p);
+                    Files.deleteIfExists(path);
                 } catch (IOException ignored) {
                 }
             });
-            if (ex instanceof RuntimeException) throw (RuntimeException) ex;
-            throw new IllegalStateException("No fue posible almacenar el archivo.", ex);
+
+            /*
+             * Registrar el rechazo.
+             *
+             * IMPORTANTE:
+             * usaremos un método de auditoría que
+             * trabaje en una transacción independiente.
+             */
+            registrarCargaRechazada(
+                    c,
+                    files,
+                    ex,
+                    req
+            );
+
+            if (ex instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+
+            throw new IllegalStateException(
+                    "No fue posible almacenar el archivo.",
+                    ex
+            );
         }
     }
 

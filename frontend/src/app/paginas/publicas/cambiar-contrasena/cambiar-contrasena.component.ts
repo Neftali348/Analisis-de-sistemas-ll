@@ -14,10 +14,13 @@ import { ServicioCambiarContrasena } from './cambiar-contrasena.service';
   styleUrl: './cambiar-contrasena.component.css'
 })
 export class ComponenteCambiarContrasena {
+
   currentPassword = '';
   newPassword = '';
   confirmPassword = '';
+
   error = '';
+  loading = false;
 
   constructor(
     private servicioCambiarContrasena: ServicioCambiarContrasena,
@@ -26,18 +29,90 @@ export class ComponenteCambiarContrasena {
   ) {}
 
   save(): void {
+
     this.error = '';
-    this.servicioCambiarContrasena.cambiar(
-      this.currentPassword,
-      this.newPassword,
-      this.confirmPassword
-    ).subscribe({
-      next: () => {
-        this.auth.logout(false);
-        alert('Contraseña actualizada. Inicie sesión nuevamente.');
-        this.router.navigateByUrl('/login');
-      },
-      error: e => this.error = e?.error?.message ?? 'No fue posible cambiar la contraseña.'
-    });
+
+    // Validar campos obligatorios
+    if (
+      !this.currentPassword ||
+      !this.newPassword ||
+      !this.confirmPassword
+    ) {
+      this.error = 'Complete todos los campos obligatorios.';
+      return;
+    }
+
+    // Guardar antes de limpiar
+    const nuevaContrasena = this.newPassword;
+
+    const usuario =
+      this.auth.session?.username ?? '';
+
+    this.loading = true;
+
+    this.servicioCambiarContrasena
+      .cambiar(
+        this.currentPassword,
+        this.newPassword,
+        this.confirmPassword
+      )
+      .subscribe({
+
+        next: () => {
+
+          // Después del cambio, el JWT anterior ya no sirve.
+          // Volvemos a autenticar con la nueva contraseña.
+          this.auth
+            .login(
+              usuario,
+              nuevaContrasena
+            )
+            .subscribe({
+
+              next: () => {
+
+                this.loading = false;
+
+                alert(
+                  'Contraseña actualizada correctamente.'
+                );
+
+                this.router.navigateByUrl(
+                  '/app/dashboard'
+                );
+              },
+
+              error: () => {
+
+                this.loading = false;
+
+                this.auth.logout(false);
+
+                alert(
+                  'Contraseña actualizada. Inicie sesión nuevamente.'
+                );
+
+                this.router.navigateByUrl(
+                  '/login'
+                );
+              }
+            });
+        },
+
+        error: e => {
+
+          this.error =
+            e?.error?.message ??
+            'No fue posible cambiar la contraseña.';
+
+          // FA06:
+          // conservar contraseña actual
+          // limpiar nueva y confirmación
+          this.newPassword = '';
+          this.confirmPassword = '';
+
+          this.loading = false;
+        }
+      });
   }
 }

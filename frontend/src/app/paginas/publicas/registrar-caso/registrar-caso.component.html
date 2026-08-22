@@ -1,25 +1,1355 @@
-<div class="public-shell"><div class="public-card"><div class="public-top"><a routerLink="/" class="brand"><div class="brand-mark">SG</div> Registro de caso</a><a routerLink="/consultar" class="btn btn-outline">Consultar caso</a></div><div class="inner">
- <div *ngIf="created" class="alert alert-success"><h2 style="margin-top:0">Caso registrado</h2><p>Tu código de seguimiento es <strong class="mono">{{created.code}}</strong>.</p><p *ngIf="created.trackingKey">Como registraste de forma anónima, guarda también esta clave temporal: <strong class="mono">{{created.trackingKey}}</strong>. Se muestra una sola vez.</p><a routerLink="/consultar" class="btn btn-primary">Consultar seguimiento</a></div>
- <ng-container *ngIf="!created"><div class="page-head"><div><h1>Registrar queja, reclamo, denuncia o sugerencia</h1><p>Completa los datos. Los campos marcados son necesarios para dar seguimiento.</p></div></div>
- <div *ngIf="error" class="alert alert-error">{{error}}</div>
- <form (ngSubmit)="submit()"><div class="grid grid-2">
-  <div class="field"><label>Tipo *</label><select [(ngModel)]="form.type" name="type" required><option value="QUEJA">Queja</option><option value="RECLAMO">Reclamo</option><option value="DENUNCIA">Denuncia</option><option value="SUGERENCIA">Sugerencia</option></select></div>
-  <div class="field"><label>Categoría *</label><select [(ngModel)]="form.category" name="category" required><option *ngFor="let x of categories" [value]="x">{{label(x)}}</option></select></div>
-  <div class="field"><label>Sucursal *</label><select [(ngModel)]="form.branchId" name="branchId" required><option [ngValue]="null">Seleccione...</option><option *ngFor="let b of branches" [ngValue]="b.id">{{b.name}}</option></select></div>
-  <div class="field"><label>Fecha y hora del incidente *</label><input type="datetime-local" [(ngModel)]="form.incidentAt" name="incidentAt" [max]="maxNow" required></div>
- </div>
- <div class="checkbox" style="margin:18px 0"><input id="anon" type="checkbox" [(ngModel)]="form.anonymous" name="anonymous"><label for="anon"><strong>Registrar de forma anónima</strong></label></div>
- <div class="checkbox" *ngIf="form.type==='DENUNCIA'" style="margin-bottom:18px"><input id="conf" type="checkbox" [(ngModel)]="form.confidential" name="confidential"><label for="conf">Marcar denuncia como confidencial</label></div>
- <div *ngIf="!form.anonymous" class="grid grid-3">
-  <div class="field"><label>Nombre completo *</label><input [(ngModel)]="form.fullName" name="fullName" placeholder="Nombre y apellido"></div>
-  <div class="field"><label>Correo electrónico *</label><input type="email" [(ngModel)]="form.email" name="email"></div>
-  <div class="field"><label>Teléfono</label><input [(ngModel)]="form.phone" name="phone" inputmode="numeric" maxlength="15"></div>
- </div>
- <div class="field" style="margin-top:16px"><label>No. de orden/factura</label><input [(ngModel)]="form.orderNumber" name="orderNumber" maxlength="30"></div>
- <div class="field" style="margin-top:16px"><label>Descripción detallada * (20 a 3000 caracteres)</label><textarea [(ngModel)]="form.description" name="description" minlength="20" maxlength="3000" required></textarea><span class="hint">{{form.description.length}} / 3000</span></div>
- <div class="field" style="margin-top:16px"><label>Evidencias (opcional)</label><input type="file" multiple accept=".jpg,.jpeg,.png,.pdf" (change)="pickFiles($event)"><span class="hint">Máximo 5 archivos; JPG/JPEG/PNG/PDF; 2 MB por archivo.</span><div class="file-list"><div *ngFor="let f of files" class="file-item"><span>{{f.name}}</span><span>{{formatBytes(f.size)}}</span></div></div></div>
- <div class="checkbox" style="margin-top:18px"><input id="contact" type="checkbox" [(ngModel)]="form.contactAuthorized" name="contactAuthorized"><label for="contact">Autorizo contacto para ampliar información.</label></div>
- <div class="checkbox" style="margin-top:12px"><input id="privacy" type="checkbox" [(ngModel)]="form.privacyAccepted" name="privacyAccepted" required><label for="privacy">He leído y acepto el aviso de privacidad. *</label></div>
- <div class="form-actions"><a routerLink="/" class="btn btn-secondary">Cancelar</a><button class="btn btn-primary" [disabled]="loading">{{loading?'Registrando...':'Registrar caso'}}</button></div>
- </form></ng-container>
- </div></div></div>
+<div class="public-shell">
+
+    <div class="public-card registro-card">
+  
+      <!-- =====================================================
+           CABECERA
+           ===================================================== -->
+  
+      <div class="public-top">
+  
+        <a
+          routerLink="/"
+          class="brand">
+  
+          <div class="brand-mark">
+            SG
+          </div>
+  
+          <div>
+            <strong>Sistema de Gestión de Quejas</strong>
+            <small>Portal público</small>
+          </div>
+  
+        </a>
+  
+        <a
+          routerLink="/consultar"
+          class="btn btn-outline">
+  
+          Consultar caso
+  
+        </a>
+  
+      </div>
+  
+  
+      <div class="inner">
+  
+  
+        <!-- =====================================================
+             CASO REGISTRADO
+             ===================================================== -->
+  
+        <div
+          *ngIf="created"
+          class="resultado-registro">
+  
+          <div class="resultado-icono">
+            ✓
+          </div>
+  
+          <span class="estado-exito">
+            Registro completado
+          </span>
+  
+          <h1>
+            Caso registrado correctamente
+          </h1>
+  
+          <p class="resultado-descripcion">
+            Guarda tu código de seguimiento.
+            Lo necesitarás para consultar el estado
+            de tu caso.
+          </p>
+  
+  
+          <div class="codigo-contenedor">
+  
+            <span>
+              Código de seguimiento
+            </span>
+  
+            <strong class="codigo-seguimiento">
+              {{ created.code }}
+            </strong>
+  
+          </div>
+  
+  
+          <!-- CASO ANÓNIMO -->
+  
+          <div
+            *ngIf="created.trackingKey"
+            class="clave-anonima">
+  
+            <div class="clave-icono">
+              !
+            </div>
+  
+            <div>
+  
+              <strong>
+                Guarda también tu clave temporal
+              </strong>
+  
+              <p>
+                Como registraste el caso de forma
+                anónima, esta clave se mostrará una
+                sola vez.
+              </p>
+  
+              <div class="clave-temporal">
+                {{ created.trackingKey }}
+              </div>
+  
+            </div>
+  
+          </div>
+  
+  
+          <div class="resultado-acciones">
+  
+            <a
+              routerLink="/consultar"
+              class="btn btn-primary">
+  
+              Consultar seguimiento
+  
+            </a>
+  
+            <button
+              type="button"
+              class="btn btn-outline"
+              (click)="imprimirComprobante()">
+  
+              Imprimir
+  
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-outline"
+              (click)="descargarComprobante()">
+  
+              Descargar comprobante
+  
+            </button>
+  
+          </div>
+  
+        </div>
+  
+  
+        <!-- =====================================================
+             RESUMEN ANTES DE REGISTRAR
+             FA12
+             ===================================================== -->
+  
+        <ng-container
+          *ngIf="
+            !created &&
+            mostrarConfirmacion
+          ">
+  
+          <div class="page-head">
+  
+            <div>
+  
+              <span class="paso-badge">
+                Paso final
+              </span>
+  
+              <h1>
+                Revisa tu información
+              </h1>
+  
+              <p>
+                Verifica que los datos sean correctos
+                antes de confirmar el registro.
+              </p>
+  
+            </div>
+  
+          </div>
+  
+  
+          <div
+            *ngIf="error"
+            class="alert alert-error">
+  
+            {{ error }}
+  
+          </div>
+  
+  
+          <div class="resumen-card">
+  
+  
+            <!-- INFORMACIÓN PRINCIPAL -->
+  
+            <div class="resumen-grid">
+  
+              <div class="resumen-item">
+  
+                <span>
+                  Tipo de caso
+                </span>
+  
+                <strong>
+                  {{ label(form.type) }}
+                </strong>
+  
+              </div>
+  
+  
+              <div class="resumen-item">
+  
+                <span>
+                  Categoría
+                </span>
+  
+                <strong>
+                  {{ label(form.category) }}
+                </strong>
+  
+              </div>
+  
+  
+              <div class="resumen-item">
+  
+                <span>
+                  Sucursal
+                </span>
+  
+                <strong>
+                  {{
+                    sucursalSeleccionada?.name
+                    || 'No seleccionada'
+                  }}
+                </strong>
+  
+              </div>
+  
+  
+              <div class="resumen-item">
+  
+                <span>
+                  Fecha del incidente
+                </span>
+  
+                <strong>
+                  {{
+                    form.incidentAt
+                    | date:'dd/MM/yyyy HH:mm'
+                  }}
+                </strong>
+  
+              </div>
+  
+  
+              <div class="resumen-item">
+  
+                <span>
+                  Registro
+                </span>
+  
+                <strong>
+                  {{
+                    form.anonymous
+                    ? 'ANÓNIMO'
+                    : 'IDENTIFICADO'
+                  }}
+                </strong>
+  
+              </div>
+  
+  
+              <div class="resumen-item">
+  
+                <span>
+                  Confidencial
+                </span>
+  
+                <strong>
+                  {{
+                    form.confidential
+                    ? 'Sí'
+                    : 'No'
+                  }}
+                </strong>
+  
+              </div>
+  
+            </div>
+  
+  
+            <!-- DATOS PERSONALES -->
+  
+            <div
+              *ngIf="!form.anonymous"
+              class="resumen-seccion">
+  
+              <h3>
+                Datos del cliente
+              </h3>
+  
+              <div class="resumen-datos">
+  
+                <div>
+  
+                  <span>Nombre</span>
+  
+                  <strong>
+                    {{ form.fullName }}
+                  </strong>
+  
+                </div>
+  
+                <div>
+  
+                  <span>Correo</span>
+  
+                  <strong>
+                    {{ form.email }}
+                  </strong>
+  
+                </div>
+  
+                <div>
+  
+                  <span>Teléfono</span>
+  
+                  <strong>
+                    {{
+                      form.phone ||
+                      'No indicado'
+                    }}
+                  </strong>
+  
+                </div>
+  
+              </div>
+  
+            </div>
+  
+  
+            <!-- PEDIDO -->
+  
+            <div
+              *ngIf="form.orderNumber"
+              class="resumen-seccion">
+  
+              <h3>
+                Orden o factura
+              </h3>
+  
+              <p>
+                {{ form.orderNumber }}
+              </p>
+  
+            </div>
+  
+  
+            <!-- DESCRIPCIÓN -->
+  
+            <div class="resumen-seccion">
+  
+              <h3>
+                Descripción
+              </h3>
+  
+              <p class="descripcion-resumen">
+                {{ form.description }}
+              </p>
+  
+            </div>
+  
+  
+            <!-- EVIDENCIAS -->
+  
+            <div class="resumen-seccion">
+  
+              <h3>
+                Evidencias adjuntas
+              </h3>
+  
+              <p
+                *ngIf="files.length === 0"
+                class="muted">
+  
+                No se adjuntaron evidencias.
+  
+              </p>
+  
+  
+              <div
+                *ngIf="files.length > 0"
+                class="archivos-resumen">
+  
+                <div
+                  *ngFor="let archivo of files"
+                  class="archivo-resumen">
+  
+                  <div>
+  
+                    <span class="archivo-icono">
+                      ▤
+                    </span>
+  
+                    <strong>
+                      {{ archivo.name }}
+                    </strong>
+  
+                  </div>
+  
+                  <span>
+                    {{ formatBytes(archivo.size) }}
+                  </span>
+  
+                </div>
+  
+              </div>
+  
+            </div>
+  
+  
+            <!-- AUTORIZACIONES -->
+  
+            <div class="resumen-seccion">
+  
+              <h3>
+                Autorizaciones
+              </h3>
+  
+              <p>
+  
+                Aviso de privacidad:
+  
+                <strong>
+                  Aceptado
+                </strong>
+  
+              </p>
+  
+              <p *ngIf="!form.anonymous">
+  
+                Contacto autorizado:
+  
+                <strong>
+                  {{
+                    form.contactAuthorized
+                    ? 'Sí'
+                    : 'No'
+                  }}
+                </strong>
+  
+              </p>
+  
+            </div>
+  
+          </div>
+  
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="loading"
+              (click)="regresarFormulario()">
+  
+              Regresar y corregir
+  
+            </button>
+  
+  
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="loading"
+              (click)="confirmarRegistro()">
+  
+              {{
+                loading
+                ? 'Registrando...'
+                : 'Confirmar registro'
+              }}
+  
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- =====================================================
+             FORMULARIO
+             ===================================================== -->
+  
+        <ng-container
+          *ngIf="
+            !created &&
+            !mostrarConfirmacion
+          ">
+  
+  
+          <div class="page-head registro-head">
+  
+            <div>
+  
+              <span class="paso-badge">
+                Nuevo caso
+              </span>
+  
+              <h1>
+                Registrar queja, reclamo,
+                denuncia o sugerencia
+              </h1>
+  
+              <p>
+                Completa los datos solicitados.
+                Los campos marcados con
+                <strong>*</strong>
+                son obligatorios.
+              </p>
+  
+            </div>
+  
+          </div>
+  
+  
+          <div
+            *ngIf="error"
+            class="alert alert-error">
+  
+            {{ error }}
+  
+          </div>
+  
+  
+          <form
+            (ngSubmit)="prepararConfirmacion()"
+            novalidate>
+  
+  
+            <!-- =================================================
+                 1. INFORMACIÓN DEL CASO
+                 ================================================= -->
+  
+            <section class="form-section">
+  
+  
+              <div class="section-head">
+  
+                <div class="section-number">
+                  1
+                </div>
+  
+                <div>
+  
+                  <h2>
+                    Información del caso
+                  </h2>
+  
+                  <p>
+                    Indica el tipo de situación,
+                    la sucursal y cuándo ocurrió.
+                  </p>
+  
+                </div>
+  
+              </div>
+  
+  
+              <div class="grid grid-2">
+  
+  
+                <div class="field">
+  
+                  <label>
+                    Tipo de caso *
+                  </label>
+  
+                  <select
+                    [(ngModel)]="form.type"
+                    name="type"
+                    (ngModelChange)="cambiarTipo()">
+  
+                    <option value="QUEJA">
+                      Queja
+                    </option>
+  
+                    <option value="RECLAMO">
+                      Reclamo
+                    </option>
+  
+                    <option value="DENUNCIA">
+                      Denuncia
+                    </option>
+  
+                    <option value="SUGERENCIA">
+                      Sugerencia
+                    </option>
+  
+                  </select>
+  
+                </div>
+  
+  
+                <div class="field">
+  
+                  <label>
+                    Categoría *
+                  </label>
+  
+                  <select
+                    [(ngModel)]="form.category"
+                    name="category">
+  
+                    <option
+                      *ngFor="
+                        let categoria
+                        of categories
+                      "
+                      [value]="categoria">
+  
+                      {{ label(categoria) }}
+  
+                    </option>
+  
+                  </select>
+  
+                </div>
+  
+  
+                <div class="field">
+  
+                  <label>
+                    Sucursal *
+                  </label>
+  
+                  <select
+                    [(ngModel)]="form.branchId"
+                    name="branchId"
+                    [class.campo-error]="
+                      intentoValidar &&
+                      !form.branchId
+                    ">
+  
+                    <option
+                      [ngValue]="null">
+  
+                      Seleccione una sucursal...
+  
+                    </option>
+  
+                    <option
+                      *ngFor="
+                        let sucursal
+                        of branches
+                      "
+                      [ngValue]="sucursal.id">
+  
+                      {{ sucursal.name }}
+  
+                    </option>
+  
+                  </select>
+  
+                  <span
+                    *ngIf="
+                      intentoValidar &&
+                      !form.branchId
+                    "
+                    class="field-error">
+  
+                    Seleccione una sucursal.
+  
+                  </span>
+  
+                </div>
+  
+  
+                <div class="field">
+  
+                  <label>
+                    Fecha y hora del incidente *
+                  </label>
+  
+                  <input
+                    type="datetime-local"
+                    [(ngModel)]="form.incidentAt"
+                    name="incidentAt"
+                    [max]="maxNow"
+                    [class.campo-error]="
+                      intentoValidar &&
+                      !form.incidentAt
+                    ">
+  
+                </div>
+  
+              </div>
+  
+  
+              <!-- DESCRIPCIÓN DEL TIPO -->
+  
+              <div class="tipo-info">
+  
+                <div class="tipo-info-icon">
+                  i
+                </div>
+  
+                <div>
+  
+                  <strong>
+                    {{ label(form.type) }}
+                  </strong>
+  
+                  <p>
+                    {{ descripcionTipo }}
+                  </p>
+  
+                </div>
+  
+              </div>
+  
+            </section>
+  
+  
+            <!-- =================================================
+                 2. IDENTIFICACIÓN
+                 ================================================= -->
+  
+            <section class="form-section">
+  
+  
+              <div class="section-head">
+  
+                <div class="section-number">
+                  2
+                </div>
+  
+                <div>
+  
+                  <h2>
+                    Identificación y contacto
+                  </h2>
+  
+                  <p>
+                    Puedes registrar el caso con tus
+                    datos o de forma anónima.
+                  </p>
+  
+                </div>
+  
+              </div>
+  
+  
+              <!-- ANÓNIMO -->
+  
+              <label class="option-card">
+  
+                <input
+                  type="checkbox"
+                  [(ngModel)]="form.anonymous"
+                  name="anonymous"
+                  (ngModelChange)="
+                    cambiarAnonimo()
+                  ">
+  
+                <div>
+  
+                  <strong>
+                    Registrar de forma anónima
+                  </strong>
+  
+                  <span>
+                    No se almacenarán nombre,
+                    correo ni teléfono.
+                  </span>
+  
+                </div>
+  
+              </label>
+  
+  
+              <!-- INFORMACIÓN ANÓNIMO -->
+  
+              <div
+                *ngIf="form.anonymous"
+                class="anonymous-warning">
+  
+                <strong>
+                  Importante
+                </strong>
+  
+                <p>
+                  Cuando el caso sea registrado,
+                  deberás conservar el código de
+                  seguimiento y la clave temporal.
+                  Sin ellos no podrás consultar
+                  posteriormente el caso.
+                </p>
+  
+              </div>
+  
+  
+              <!-- CONFIDENCIAL -->
+  
+              <label
+                *ngIf="
+                  form.type === 'DENUNCIA'
+                "
+                class="
+                  option-card
+                  confidential-card
+                ">
+  
+                <input
+                  type="checkbox"
+                  [(ngModel)]="
+                    form.confidential
+                  "
+                  name="confidential">
+  
+                <div>
+  
+                  <strong>
+                    Marcar denuncia como confidencial
+                  </strong>
+  
+                  <span>
+                    La identidad y los datos sensibles
+                    tendrán acceso restringido.
+                  </span>
+  
+                </div>
+  
+              </label>
+  
+  
+              <!-- DATOS IDENTIFICADOS -->
+  
+              <div
+                *ngIf="!form.anonymous"
+                class="grid grid-3 datos-personales">
+  
+  
+                <div class="field">
+  
+                  <label>
+                    Nombre completo *
+                  </label>
+  
+                  <input
+                    [(ngModel)]="form.fullName"
+                    name="fullName"
+                    placeholder="Nombre y apellido"
+                    autocomplete="name"
+                    [class.campo-error]="
+                      intentoValidar &&
+                      nombreInvalido()
+                    ">
+  
+                  <span
+                    *ngIf="
+                      intentoValidar &&
+                      nombreInvalido()
+                    "
+                    class="field-error">
+  
+                    Ingrese nombre y apellido.
+  
+                  </span>
+  
+                </div>
+  
+  
+                <div class="field">
+  
+                  <label>
+                    Correo electrónico *
+                  </label>
+  
+                  <input
+                    type="email"
+                    [(ngModel)]="form.email"
+                    name="email"
+                    placeholder="correo@ejemplo.com"
+                    autocomplete="email"
+                    [class.campo-error]="
+                      intentoValidar &&
+                      correoInvalido()
+                    ">
+  
+                  <span
+                    *ngIf="
+                      intentoValidar &&
+                      correoInvalido()
+                    "
+                    class="field-error">
+  
+                    Ingrese un correo válido.
+  
+                  </span>
+  
+                </div>
+  
+  
+                <div class="field">
+  
+                  <label>
+                    Teléfono
+                  </label>
+  
+                  <input
+                    [(ngModel)]="form.phone"
+                    name="phone"
+                    inputmode="numeric"
+                    maxlength="15"
+                    autocomplete="tel"
+                    placeholder="8 a 15 dígitos"
+                    [class.campo-error]="
+                      intentoValidar &&
+                      telefonoInvalido()
+                    ">
+  
+                  <span
+                    *ngIf="
+                      intentoValidar &&
+                      telefonoInvalido()
+                    "
+                    class="field-error">
+  
+                    Debe contener entre 8 y
+                    15 dígitos.
+  
+                  </span>
+  
+                  <span class="hint">
+                    Solo números.
+                  </span>
+  
+                </div>
+  
+              </div>
+  
+            </section>
+  
+  
+            <!-- =================================================
+                 3. DETALLE
+                 ================================================= -->
+  
+            <section class="form-section">
+  
+  
+              <div class="section-head">
+  
+                <div class="section-number">
+                  3
+                </div>
+  
+                <div>
+  
+                  <h2>
+                    Detalle del caso
+                  </h2>
+  
+                  <p>
+                    Describe claramente lo sucedido.
+                  </p>
+  
+                </div>
+  
+              </div>
+  
+  
+              <div class="field">
+  
+                <label>
+                  No. de orden o factura
+                </label>
+  
+                <input
+                  [(ngModel)]="form.orderNumber"
+                  name="orderNumber"
+                  maxlength="30"
+                  placeholder="Opcional">
+  
+              </div>
+  
+  
+              <div class="field descripcion-field">
+  
+                <div class="label-row">
+  
+                  <label>
+                    Descripción detallada *
+                  </label>
+  
+                  <span
+                    class="contador"
+                    [class.contador-error]="
+                      intentoValidar &&
+                      descripcionInvalida()
+                    ">
+  
+                    {{
+                      form.description.length
+                    }}
+                    / 3000
+  
+                  </span>
+  
+                </div>
+  
+  
+                <textarea
+                  [(ngModel)]="form.description"
+                  name="description"
+                  minlength="20"
+                  maxlength="3000"
+                  rows="7"
+                  placeholder="
+  Describe lo ocurrido con el mayor detalle posible...
+                  "
+                  [class.campo-error]="
+                    intentoValidar &&
+                    descripcionInvalida()
+                  ">
+                </textarea>
+  
+  
+                <span class="hint">
+                  Mínimo 20 y máximo
+                  3000 caracteres.
+                </span>
+  
+  
+                <span
+                  *ngIf="
+                    intentoValidar &&
+                    descripcionInvalida()
+                  "
+                  class="field-error">
+  
+                  La descripción debe contener
+                  entre 20 y 3000 caracteres.
+  
+                </span>
+  
+              </div>
+  
+            </section>
+  
+  
+            <!-- =================================================
+                 4. EVIDENCIAS
+                 ================================================= -->
+  
+            <section class="form-section">
+  
+  
+              <div class="section-head">
+  
+                <div class="section-number">
+                  4
+                </div>
+  
+                <div>
+  
+                  <h2>
+                    Evidencias
+                  </h2>
+  
+                  <p>
+                    Puedes adjuntar fotografías
+                    o documentos relacionados.
+                  </p>
+  
+                </div>
+  
+              </div>
+  
+  
+              <label class="upload-box">
+  
+                <input
+                  type="file"
+                  multiple
+                  accept="
+                    .jpg,
+                    .jpeg,
+                    .png,
+                    .pdf
+                  "
+                  (change)="
+                    pickFiles($event)
+                  ">
+  
+                <div class="upload-icon">
+                  ↑
+                </div>
+  
+                <strong>
+                  Seleccionar archivos
+                </strong>
+  
+                <span>
+                  JPG, JPEG, PNG o PDF
+                </span>
+  
+                <span>
+                  Máximo 5 archivos ·
+                  2 MB por archivo
+                </span>
+  
+              </label>
+  
+  
+              <!-- LISTADO -->
+  
+              <div
+                *ngIf="files.length > 0"
+                class="file-list">
+  
+                <div
+                  *ngFor="
+                    let archivo of files;
+                    let i = index
+                  "
+                  class="file-item">
+  
+  
+                  <div class="file-info">
+  
+                    <div class="file-icon">
+                      ▤
+                    </div>
+  
+                    <div>
+  
+                      <strong>
+                        {{ archivo.name }}
+                      </strong>
+  
+                      <span>
+                        {{
+                          formatBytes(
+                            archivo.size
+                          )
+                        }}
+                      </span>
+  
+                    </div>
+  
+                  </div>
+  
+  
+                  <button
+                    type="button"
+                    class="remove-file"
+                    (click)="
+                      eliminarArchivo(i)
+                    "
+                    [attr.aria-label]="
+                      'Eliminar ' +
+                      archivo.name
+                    ">
+  
+                    ×
+  
+                  </button>
+  
+                </div>
+  
+              </div>
+  
+  
+              <div
+                *ngIf="files.length > 0"
+                class="cantidad-archivos">
+  
+                {{ files.length }} de 5 archivos seleccionados
+  
+              </div>
+  
+            </section>
+  
+  
+            <!-- =================================================
+                 5. PRIVACIDAD
+                 ================================================= -->
+  
+            <section class="form-section">
+  
+  
+              <div class="section-head">
+  
+                <div class="section-number">
+                  5
+                </div>
+  
+                <div>
+  
+                  <h2>
+                    Privacidad y contacto
+                  </h2>
+  
+                  <p>
+                    Revisa las condiciones antes
+                    de continuar.
+                  </p>
+  
+                </div>
+  
+              </div>
+  
+  
+              <div class="privacy-box">
+  
+                <strong>
+                  Aviso de privacidad
+                </strong>
+  
+                <p>
+                  La información proporcionada
+                  será utilizada únicamente para
+                  gestionar y dar seguimiento al
+                  caso registrado, conforme a las
+                  políticas de privacidad del sistema.
+                </p>
+  
+              </div>
+  
+  
+              <!-- CONTACTO -->
+  
+              <label
+                *ngIf="!form.anonymous"
+                class="option-card">
+  
+                <input
+                  type="checkbox"
+                  [(ngModel)]="
+                    form.contactAuthorized
+                  "
+                  name="contactAuthorized">
+  
+                <div>
+  
+                  <strong>
+                    Autorización de contacto
+                  </strong>
+  
+                  <span>
+                    Autorizo que me contacten
+                    para ampliar información
+                    relacionada con este caso.
+                  </span>
+  
+                </div>
+  
+              </label>
+  
+  
+              <!-- ACEPTACIÓN -->
+  
+              <label
+                class="option-card"
+                [class.campo-error-box]="
+                  intentoValidar &&
+                  !form.privacyAccepted
+                ">
+  
+                <input
+                  type="checkbox"
+                  [(ngModel)]="
+                    form.privacyAccepted
+                  "
+                  name="privacyAccepted">
+  
+                <div>
+  
+                  <strong>
+                    He leído y acepto el aviso
+                    de privacidad. *
+                  </strong>
+  
+                  <span>
+                    Esta aceptación es necesaria
+                    para registrar el caso.
+                  </span>
+  
+                </div>
+  
+              </label>
+  
+  
+              <span
+                *ngIf="
+                  intentoValidar &&
+                  !form.privacyAccepted
+                "
+                class="field-error privacy-error">
+  
+                Debe aceptar el aviso
+                de privacidad.
+  
+              </span>
+  
+            </section>
+  
+  
+            <!-- =================================================
+                 ACCIONES
+                 ================================================= -->
+  
+            <div class="form-actions">
+  
+              <button
+                type="button"
+                class="btn btn-secondary"
+                (click)="cancelarRegistro()">
+  
+                Cancelar
+  
+              </button>
+  
+  
+              <button
+                type="submit"
+                class="btn btn-primary"
+                [disabled]="
+                  loading ||
+                  !form.branchId ||
+                  !form.incidentAt ||
+                  !form.description ||
+                  form.description.trim().length < 20 ||
+                  !form.privacyAccepted ||
+                  (
+                    !form.anonymous &&
+                    (
+                      !form.fullName ||
+                      !form.email
+                    )
+                  )
+                ">
+  
+                Revisar y continuar
+  
+              </button>
+  
+            </div>
+  
+          </form>
+  
+        </ng-container>
+  
+      </div>
+  
+    </div>
+  
+  </div>
