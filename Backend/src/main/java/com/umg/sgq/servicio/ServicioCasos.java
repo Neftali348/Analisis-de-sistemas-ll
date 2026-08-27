@@ -12,6 +12,8 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.*;
 import java.util.*;
@@ -28,8 +30,21 @@ public class ServicioCasos {
     private final ServicioNotificaciones notifications;
     private final ServicioEvidencias evidence;
     private final RepositorioSucursal branchRepository;
+    private final RepositorioEvidencia evidenceRepository;
 
-    public ServicioCasos(RepositorioCaso cases, RepositorioUsuario users, RepositorioSeguimiento followUps, MapeadorCaso mapper, ServicioUsuarioActual current, ServicioReglasCaso rules, ServicioAuditoria audit, ServicioNotificaciones notifications, ServicioEvidencias evidence, RepositorioSucursal branchRepository) {
+    public ServicioCasos(
+            RepositorioCaso cases,
+            RepositorioUsuario users,
+            RepositorioSeguimiento followUps,
+            MapeadorCaso mapper,
+            ServicioUsuarioActual current,
+            ServicioReglasCaso rules,
+            ServicioAuditoria audit,
+            ServicioNotificaciones notifications,
+            ServicioEvidencias evidence,
+            RepositorioSucursal branchRepository,
+            RepositorioEvidencia evidenceRepository
+    ) {
         this.cases = cases;
         this.users = users;
         this.followUps = followUps;
@@ -40,55 +55,375 @@ public class ServicioCasos {
         this.notifications = notifications;
         this.evidence = evidence;
         this.branchRepository = branchRepository;
+        this.evidenceRepository = evidenceRepository;
     }
 
     @Transactional(readOnly = true)
-    public PaginaCasos search(List<EstadoCaso> statuses, String q, LocalDate from, LocalDate to, TipoCaso type, Prioridad priority, Long branchId, CategoriaCaso category, Long responsibleId, IndicadorSla sla, int page, int size) {
+    public PaginaCasos search(
+            List<EstadoCaso> statuses,
+            String code,
+            LocalDate from,
+            LocalDate to,
+            TipoCaso type,
+            Prioridad priority,
+            Long branchId,
+            CategoriaCaso category,
+            Long responsibleId,
+            IndicadorSla sla,
+            int page,
+            int size
+    ) {
+
         Usuario u = current.require();
-        Long scopeBranch = null, scopeResponsible = null;
+
+        Long scopeBranch = null;
+        Long scopeResponsible = null;
+
         if (u.getRole().getCode() == CodigoRol.AGENTE_ATENCION) {
+
             scopeResponsible = u.getId();
-            scopeBranch = u.getBranch() == null ? null : u.getBranch().getId();
-        } else if (u.getRole().getCode() == CodigoRol.SUPERVISOR) {
-            scopeBranch = u.getBranch() == null ? null : u.getBranch().getId();
+
+            scopeBranch =
+                    u.getBranch() == null
+                            ? null
+                            : u.getBranch().getId();
+
+        } else if (
+                u.getRole().getCode() == CodigoRol.SUPERVISOR
+        ) {
+
+            scopeBranch =
+                    u.getBranch() == null
+                            ? null
+                            : u.getBranch().getId();
         }
-        if (from != null && to != null && from.isAfter(to))
-            throw new IllegalArgumentException("La fecha inicial no puede ser posterior a la fecha final.");
-        final Long sb = scopeBranch, sr = scopeResponsible;
-        final String search = blank(q);
-        final LocalDateTime f = from == null ? null : from.atStartOfDay();
-        final LocalDateTime t = to == null ? null : to.plusDays(1).atStartOfDay().minusNanos(1);
-        Specification<Caso> spec = (root, query, cb) -> {
-            List<Predicate> ps = new ArrayList<>();
-            if (sb != null) ps.add(cb.equal(root.get("branch").get("id"), sb));
-            if (sr != null) ps.add(cb.equal(root.get("responsible").get("id"), sr));
-            if (branchId != null) ps.add(cb.equal(root.get("branch").get("id"), branchId));
-            if (responsibleId != null) ps.add(cb.equal(root.get("responsible").get("id"), responsibleId));
-            if (statuses != null && !statuses.isEmpty()) ps.add(root.get("status").in(statuses));
-            if (type != null) ps.add(cb.equal(root.get("type"), type));
-            if (priority != null) ps.add(cb.equal(root.get("priority"), priority));
-            if (category != null) ps.add(cb.equal(root.get("category"), category));
-            if (f != null) ps.add(cb.greaterThanOrEqualTo(root.get("createdAt"), f));
-            if (t != null) ps.add(cb.lessThanOrEqualTo(root.get("createdAt"), t));
-            if (search != null) {
-                String like = "%" + search.toLowerCase(Locale.ROOT) + "%";
-                ps.add(cb.or(cb.like(cb.lower(root.get("code")), like), cb.like(cb.lower(root.get("fullName")), like)));
-            }
-            if (sla == IndicadorSla.VENCIDO) ps.add(cb.isTrue(root.get("slaBreached")));
-            else if (sla == IndicadorSla.PROXIMO_A_VENCER) {
-                ps.add(cb.isTrue(root.get("slaWarningSent")));
-                ps.add(cb.isFalse(root.get("slaBreached")));
-            } else if (sla == IndicadorSla.EN_TIEMPO) {
-                ps.add(cb.isFalse(root.get("slaWarningSent")));
-                ps.add(cb.isFalse(root.get("slaBreached")));
-            }
-            return cb.and(ps.toArray(Predicate[]::new));
-        };
-        int safeSize = Math.max(5, Math.min(size, 100));
-        Page<Caso> result = cases.findAll(spec, PageRequest.of(Math.max(0, page), safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
-        boolean revealRole = u.getRole().getCode() != CodigoRol.AGENTE_ATENCION;
-        List<VistaCasoInterno> content = result.getContent().stream().map(c -> mapper.internalView(c, revealRole || !c.isConfidential())).toList();
-        return new PaginaCasos(content, result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());
+
+        // =====================================================
+        // FA02 - rango de fechas
+        // =====================================================
+
+        if (
+                from != null &&
+                        to != null &&
+                        from.isAfter(to)
+        ) {
+
+            throw new IllegalArgumentException(
+                    "La fecha inicial no puede ser posterior a la fecha final."
+            );
+        }
+
+        final Long sb = scopeBranch;
+        final Long sr = scopeResponsible;
+
+        final String codigo = blank(code);
+
+        /*
+         * FA01 / RN05
+         *
+         * El CU permite buscar por código completo
+         * o una parte del código.
+         *
+         * Si tiene la longitud de un código completo,
+         * validamos su estructura.
+         */
+        if (
+                codigo != null &&
+                        codigo.length() >= 15 &&
+                        !codigo.toUpperCase(Locale.ROOT)
+                                .matches(
+                                        "^(QUE|REC|DEN|SUG)-\\d{4}-\\d{6}$"
+                                )
+        ) {
+
+            throw new IllegalArgumentException(
+                    "El código de seguimiento no existe o los datos de consulta son incorrectos."
+            );
+        }
+
+        final LocalDateTime f =
+                from == null
+                        ? null
+                        : from.atStartOfDay();
+
+        final LocalDateTime t =
+                to == null
+                        ? null
+                        : to.plusDays(1)
+                        .atStartOfDay()
+                        .minusNanos(1);
+
+        Specification<Caso> spec =
+                (root, query, cb) -> {
+
+                    List<Predicate> ps =
+                            new ArrayList<>();
+
+                    // =================================================
+                    // RN01 / RN21
+                    // Ámbito del usuario
+                    // =================================================
+
+                    if (sb != null) {
+
+                        ps.add(
+                                cb.equal(
+                                        root.get("branch").get("id"),
+                                        sb
+                                )
+                        );
+                    }
+
+                    if (sr != null) {
+
+                        ps.add(
+                                cb.equal(
+                                        root.get("responsible").get("id"),
+                                        sr
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA06 - Sucursal
+                    // =================================================
+
+                    if (branchId != null) {
+
+                        ps.add(
+                                cb.equal(
+                                        root.get("branch").get("id"),
+                                        branchId
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA06 - Responsable
+                    // =================================================
+
+                    if (responsibleId != null) {
+
+                        ps.add(
+                                cb.equal(
+                                        root.get("responsible").get("id"),
+                                        responsibleId
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA04 - uno o varios estados
+                    // =================================================
+
+                    if (
+                            statuses != null &&
+                                    !statuses.isEmpty()
+                    ) {
+
+                        ps.add(
+                                root.get("status")
+                                        .in(statuses)
+                        );
+                    }
+
+                    // =================================================
+                    // FA03 - Tipo
+                    // =================================================
+
+                    if (type != null) {
+
+                        ps.add(
+                                cb.equal(
+                                        root.get("type"),
+                                        type
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA05 - Prioridad
+                    // =================================================
+
+                    if (priority != null) {
+
+                        ps.add(
+                                cb.equal(
+                                        root.get("priority"),
+                                        priority
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA06 - Categoría
+                    // =================================================
+
+                    if (category != null) {
+
+                        ps.add(
+                                cb.equal(
+                                        root.get("category"),
+                                        category
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA02 - Fechas
+                    // =================================================
+
+                    if (f != null) {
+
+                        ps.add(
+                                cb.greaterThanOrEqualTo(
+                                        root.get("createdAt"),
+                                        f
+                                )
+                        );
+                    }
+
+                    if (t != null) {
+
+                        ps.add(
+                                cb.lessThanOrEqualTo(
+                                        root.get("createdAt"),
+                                        t
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA01 - SOLO código
+                    // =================================================
+
+                    if (codigo != null) {
+
+                        String like =
+                                "%" +
+                                        codigo
+                                                .toLowerCase(Locale.ROOT) +
+                                        "%";
+
+                        ps.add(
+                                cb.like(
+                                        cb.lower(
+                                                root.get("code")
+                                        ),
+                                        like
+                                )
+                        );
+                    }
+
+                    // =================================================
+                    // FA07 / RN20 - SLA
+                    // =================================================
+
+                    if (
+                            sla ==
+                                    IndicadorSla.VENCIDO
+                    ) {
+
+                        ps.add(
+                                cb.isTrue(
+                                        root.get("slaBreached")
+                                )
+                        );
+
+                    } else if (
+                            sla ==
+                                    IndicadorSla.PROXIMO_A_VENCER
+                    ) {
+
+                        ps.add(
+                                cb.isTrue(
+                                        root.get(
+                                                "slaWarningSent"
+                                        )
+                                )
+                        );
+
+                        ps.add(
+                                cb.isFalse(
+                                        root.get(
+                                                "slaBreached"
+                                        )
+                                )
+                        );
+
+                    } else if (
+                            sla ==
+                                    IndicadorSla.EN_TIEMPO
+                    ) {
+
+                        ps.add(
+                                cb.isFalse(
+                                        root.get(
+                                                "slaWarningSent"
+                                        )
+                                )
+                        );
+
+                        ps.add(
+                                cb.isFalse(
+                                        root.get(
+                                                "slaBreached"
+                                        )
+                                )
+                        );
+                    }
+
+                    return cb.and(
+                            ps.toArray(
+                                    Predicate[]::new
+                            )
+                    );
+                };
+
+        int safeSize =
+                Math.max(
+                        5,
+                        Math.min(size, 100)
+                );
+
+        Page<Caso> result =
+                cases.findAll(
+                        spec,
+                        PageRequest.of(
+                                Math.max(0, page),
+                                safeSize,
+                                Sort.by(
+                                        Sort.Direction.DESC,
+                                        "createdAt"
+                                )
+                        )
+                );
+
+        boolean revealRole =
+                u.getRole().getCode() !=
+                        CodigoRol.AGENTE_ATENCION;
+
+        List<VistaCasoInterno> content =
+                result
+                        .getContent()
+                        .stream()
+                        .map(
+                                c ->
+                                        mapper.internalView(
+                                                c,
+                                                revealRole ||
+                                                        !c.isConfidential()
+                                        )
+                        )
+                        .toList();
+
+        return new PaginaCasos(
+                content,
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages()
+        );
     }
 
     @Transactional
@@ -101,9 +436,252 @@ public class ServicioCasos {
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> availableAgents(Long caseId) {
-        Caso c = requireAccessible(caseId);
-        return users.findActiveByRoleAndBranch(CodigoRol.AGENTE_ATENCION, EstadoRegistro.ACTIVO, c.getBranch().getId()).stream().map(u -> Map.<String, Object>of("id", u.getId(), "name", u.getFullName(), "openCases", cases.countByResponsibleIdAndStatusNotIn(u.getId(), List.of(EstadoCaso.CERRADO, EstadoCaso.CANCELADO, EstadoCaso.RECHAZADO)))).toList();
+    public List<VistaAgenteAsignacion> availableAgents(
+            Long caseId,
+            String q,
+            Long branchId,
+            CategoriaCaso category,
+            Boolean available,
+            Integer maxOpenCases
+    ) {
+
+        // CU-05 / RN01 / RN21
+        // Solo Supervisor o Administrador puede asignar responsables.
+        requireSupervisorOrAdmin();
+
+        Caso caso = requireAccessible(caseId);
+
+        // CU-05 FA03:
+        // No se permite asignar/reasignar en estados finales.
+        if (Set.of(
+                EstadoCaso.CERRADO,
+                EstadoCaso.CANCELADO,
+                EstadoCaso.RECHAZADO
+        ).contains(caso.getStatus())) {
+
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado "
+                            + caso.getStatus()
+                            + " y no permite esta operación."
+            );
+        }
+
+        /*
+         * Una asignación inicial solamente corresponde cuando el caso
+         * está Pendiente de Asignación o Reabierto sin responsable.
+         *
+         * Si ya existe responsable, se trata como reasignación y RN09
+         * permite gestionarla mientras el caso no esté en estado final.
+         */
+        if (caso.getResponsible() == null
+                && !Set.of(
+                EstadoCaso.PENDIENTE_ASIGNACION,
+                EstadoCaso.REABIERTO
+        ).contains(caso.getStatus())) {
+
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado "
+                            + caso.getStatus()
+                            + " y no permite esta operación."
+            );
+        }
+
+        if (maxOpenCases != null && maxOpenCases < 0) {
+            throw new IllegalArgumentException(
+                    "La cantidad de casos abiertos no puede ser negativa."
+            );
+        }
+
+        String busqueda = blank(q);
+
+        List<EstadoCaso> estadosFinales = List.of(
+                EstadoCaso.CERRADO,
+                EstadoCaso.CANCELADO,
+                EstadoCaso.RECHAZADO
+        );
+
+        LocalDateTime ahora = LocalDateTime.now();
+
+        return users.findActiveByRole(
+                        CodigoRol.AGENTE_ATENCION,
+                        EstadoRegistro.ACTIVO
+                )
+                .stream()
+
+                // =====================================================
+                // RN09
+                // Debe poseer acceso por sucursal O categoría.
+                // =====================================================
+                .filter(usuario -> {
+
+                    boolean mismaSucursal =
+                            usuario.getBranch() != null
+                                    && Objects.equals(
+                                    usuario.getBranch().getId(),
+                                    caso.getBranch().getId()
+                            );
+
+                    boolean categoriaAutorizada =
+                            usuario.getAuthorizedCategories() != null
+                                    && usuario
+                                    .getAuthorizedCategories()
+                                    .contains(caso.getCategory());
+
+                    return mismaSucursal || categoriaAutorizada;
+                })
+
+                // =====================================================
+                // FA04
+                // Nombre completo, parte del nombre o username.
+                // =====================================================
+                .filter(usuario -> {
+
+                    if (busqueda == null) {
+                        return true;
+                    }
+
+                    String valor =
+                            busqueda.toLowerCase(Locale.ROOT);
+
+                    return usuario
+                            .getFullName()
+                            .toLowerCase(Locale.ROOT)
+                            .contains(valor)
+                            ||
+                            usuario
+                                    .getUsername()
+                                    .toLowerCase(Locale.ROOT)
+                                    .contains(valor);
+                })
+
+                // =====================================================
+                // FA05 - Sucursal
+                // =====================================================
+                .filter(usuario ->
+                        branchId == null
+                                ||
+                                (
+                                        usuario.getBranch() != null
+                                                && Objects.equals(
+                                                usuario.getBranch().getId(),
+                                                branchId
+                                        )
+                                )
+                )
+
+                // =====================================================
+                // FA05 - Categoría / especialidad
+                // =====================================================
+                .filter(usuario ->
+                        category == null
+                                ||
+                                (
+                                        usuario.getAuthorizedCategories() != null
+                                                && usuario
+                                                .getAuthorizedCategories()
+                                                .contains(category)
+                                )
+                )
+
+                .map(usuario -> {
+
+                    long abiertos =
+                            cases.countByResponsibleIdAndStatusNotIn(
+                                    usuario.getId(),
+                                    estadosFinales
+                            );
+
+                    long vencidos =
+                            cases.countByResponsibleIdAndSlaBreachedTrueAndStatusNotIn(
+                                    usuario.getId(),
+                                    estadosFinales
+                            );
+
+                    /*
+                     * Disponibilidad CU-05:
+                     * - usuario marcado como disponible;
+                     * - cuenta activa;
+                     * - cuenta no bloqueada en este momento.
+                     */
+                    boolean noBloqueado =
+                            usuario.getLockedUntil() == null
+                                    || !usuario.getLockedUntil().isAfter(ahora);
+
+                    boolean disponible =
+                            usuario.isAvailableForAssignment()
+                                    && usuario.getStatus() == EstadoRegistro.ACTIVO
+                                    && noBloqueado;
+
+                    List<CategoriaCaso> categorias =
+                            usuario.getAuthorizedCategories() == null
+                                    ? List.of()
+                                    : usuario
+                                    .getAuthorizedCategories()
+                                    .stream()
+                                    .sorted(
+                                            Comparator.comparing(Enum::name)
+                                    )
+                                    .toList();
+
+                    return new VistaAgenteAsignacion(
+                            usuario.getId(),
+                            usuario.getFullName(),
+                            usuario.getUsername(),
+
+                            usuario.getBranch() == null
+                                    ? null
+                                    : usuario.getBranch().getId(),
+
+                            usuario.getBranch() == null
+                                    ? "Sin sucursal"
+                                    : usuario.getBranch().getName(),
+
+                            categorias,
+                            abiertos,
+                            vencidos,
+                            disponible
+                    );
+                })
+
+                // =====================================================
+                // FA05 - Disponibilidad
+                // =====================================================
+                .filter(agente ->
+                        available == null
+                                || agente.available() == available
+                )
+
+                // =====================================================
+                // FA05 - Cantidad de casos abiertos
+                // =====================================================
+                .filter(agente ->
+                        maxOpenCases == null
+                                || agente.openCases() <= maxOpenCases
+                )
+
+                /*
+                 * FA18:
+                 * La lista favorece agentes disponibles y menor carga.
+                 * Esto también ayuda a un caso de prioridad Crítica.
+                 */
+                .sorted(
+                        Comparator
+                                .comparing(
+                                        VistaAgenteAsignacion::available
+                                )
+                                .reversed()
+                                .thenComparingLong(
+                                        VistaAgenteAsignacion::overdueCases
+                                )
+                                .thenComparingLong(
+                                        VistaAgenteAsignacion::openCases
+                                )
+                                .thenComparing(
+                                        VistaAgenteAsignacion::fullName,
+                                        String.CASE_INSENSITIVE_ORDER
+                                )
+                )
+                .toList();
     }
 
     @Transactional
@@ -144,35 +722,469 @@ public class ServicioCasos {
         return mapper.internalView(c, true);
     }
 
-    @Transactional
-    public VistaCasoInterno assign(Long id, SolicitudAsignacion r, HttpServletRequest req) {
-        requireSupervisorOrAdmin();
-        Caso c = requireAccessible(id);
-        if (Set.of(EstadoCaso.CERRADO, EstadoCaso.CANCELADO, EstadoCaso.RECHAZADO).contains(c.getStatus()))
-            throw new IllegalArgumentException("El caso se encuentra en estado " + c.getStatus() + " y no permite esta operación.");
-        Usuario agent = users.findById(r.responsibleId()).orElseThrow(() -> new IllegalArgumentException("El responsable seleccionado no existe."));
-        if (agent.getStatus() != EstadoRegistro.ACTIVO || agent.getRole().getCode() != CodigoRol.AGENTE_ATENCION)
-            throw new IllegalArgumentException("El responsable seleccionado no se encuentra activo.");
-        if (agent.getBranch() == null || !Objects.equals(agent.getBranch().getId(), c.getBranch().getId()))
-            throw new IllegalArgumentException("El responsable no tiene acceso a la sucursal del caso.");
-        Usuario old = c.getResponsible();
-        boolean reassignment = old != null && !Objects.equals(old.getId(), agent.getId());
-        if (old != null && Objects.equals(old.getId(), agent.getId()))
-            throw new IllegalArgumentException("El caso ya cuenta con ese responsable activo.");
-        if (reassignment && (r.reason() == null || r.reason().isBlank()))
-            throw new IllegalArgumentException("La reasignación requiere un motivo obligatorio.");
-        EstadoCaso oldStatus = c.getStatus();
-        c.setResponsible(agent);
-        if (old == null && (oldStatus == EstadoCaso.PENDIENTE_ASIGNACION || oldStatus == EstadoCaso.REABIERTO)) {
-            rules.requireTransition(oldStatus, EstadoCaso.ASIGNADO);
-            c.setStatus(EstadoCaso.ASIGNADO);
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>>
+    responsablesDisponiblesFiltro() {
+
+        Usuario usuario =
+                current.require();
+
+        CodigoRol rol =
+                usuario.getRole().getCode();
+
+        /*
+         * AGENTE:
+         * Solo puede consultar sus propios casos,
+         * por lo tanto solamente se muestra él.
+         */
+        if (
+                rol ==
+                        CodigoRol.AGENTE_ATENCION
+        ) {
+
+            return List.of(
+                    Map.of(
+                            "id",
+                            usuario.getId(),
+                            "name",
+                            usuario.getFullName()
+                    )
+            );
         }
+
+        /*
+         * SUPERVISOR:
+         * únicamente agentes activos
+         * de su sucursal.
+         */
+        if (
+                rol ==
+                        CodigoRol.SUPERVISOR
+        ) {
+
+            if (
+                    usuario.getBranch() == null
+            ) {
+
+                return List.of();
+            }
+
+            return users
+                    .findActiveByRoleAndBranch(
+                            CodigoRol.AGENTE_ATENCION,
+                            EstadoRegistro.ACTIVO,
+                            usuario
+                                    .getBranch()
+                                    .getId()
+                    )
+                    .stream()
+                    .map(
+                            agente ->
+                                    Map.<String, Object>of(
+                                            "id",
+                                            agente.getId(),
+                                            "name",
+                                            agente.getFullName()
+                                    )
+                    )
+                    .toList();
+        }
+
+        /*
+         * ADMINISTRADOR:
+         * todos los agentes activos.
+         *
+         * Si RepositorioUsuario extiende JpaRepository,
+         * findAll() ya está disponible.
+         */
+        return users
+                .findAll()
+                .stream()
+                .filter(
+                        agente ->
+                                agente.getStatus() ==
+                                        EstadoRegistro.ACTIVO
+                )
+                .filter(
+                        agente ->
+                                agente.getRole()
+                                        .getCode() ==
+                                        CodigoRol.AGENTE_ATENCION
+                )
+                .map(
+                        agente ->
+                                Map.<String, Object>of(
+                                        "id",
+                                        agente.getId(),
+                                        "name",
+                                        agente.getFullName()
+                                )
+                )
+                .toList();
+    }
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>>
+    sucursalesDisponiblesFiltro() {
+
+        Usuario usuario =
+                current.require();
+
+        CodigoRol rol =
+                usuario.getRole().getCode();
+
+        if (
+                rol ==
+                        CodigoRol.AGENTE_ATENCION ||
+                        rol ==
+                                CodigoRol.SUPERVISOR
+        ) {
+
+            if (
+                    usuario.getBranch() == null
+            ) {
+
+                return List.of();
+            }
+
+            Sucursal sucursal =
+                    usuario.getBranch();
+
+            return List.of(
+                    Map.of(
+                            "id",
+                            sucursal.getId(),
+                            "name",
+                            sucursal.getName()
+                    )
+            );
+        }
+
+        return branchRepository
+                .findAll()
+                .stream()
+                .filter(
+                        sucursal ->
+                                sucursal.getStatus() ==
+                                        EstadoRegistro.ACTIVO
+                )
+                .map(
+                        sucursal ->
+                                Map.<String, Object>of(
+                                        "id",
+                                        sucursal.getId(),
+                                        "name",
+                                        sucursal.getName()
+                                )
+                )
+                .toList();
+    }
+
+    @Transactional
+    public VistaCasoInterno assign(
+            Long id,
+            SolicitudAsignacion r,
+            HttpServletRequest req
+    ) {
+
+        requireSupervisorOrAdmin();
+
+        Caso c = requireAccessible(id);
+
+        // =====================================================
+        // FA12 - CONCURRENCIA
+        // =====================================================
+        if (c.getVersion() != r.version()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La operación fue rechazada porque la información cambió durante el proceso."
+            );
+        }
+
+        // =====================================================
+        // FA03 - ESTADO DEL CASO
+        // =====================================================
+        if (Set.of(
+                EstadoCaso.CERRADO,
+                EstadoCaso.CANCELADO,
+                EstadoCaso.RECHAZADO
+        ).contains(c.getStatus())) {
+
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado "
+                            + c.getStatus()
+                            + " y no permite esta operación."
+            );
+        }
+
+        Usuario old = c.getResponsible();
+
+        /*
+         * Asignación inicial:
+         * Pendiente de Asignación o Reabierto sin responsable.
+         *
+         * Si ya existe responsable, la operación es una reasignación.
+         */
+        if (old == null
+                && !Set.of(
+                EstadoCaso.PENDIENTE_ASIGNACION,
+                EstadoCaso.REABIERTO
+        ).contains(c.getStatus())) {
+
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado "
+                            + c.getStatus()
+                            + " y no permite esta operación."
+            );
+        }
+
+        Usuario agent =
+                users.findById(r.responsibleId())
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "El responsable seleccionado no existe."
+                                )
+                        );
+
+        // =====================================================
+        // FA09 / RN09 / RN15
+        // ACTIVO, ROL CORRECTO Y NO BLOQUEADO
+        // =====================================================
+        if (agent.getStatus() != EstadoRegistro.ACTIVO
+                || agent.getRole().getCode() != CodigoRol.AGENTE_ATENCION) {
+
+            throw new IllegalArgumentException(
+                    "El responsable seleccionado no se encuentra activo."
+            );
+        }
+
+        boolean bloqueado =
+                agent.getLockedUntil() != null
+                        && agent
+                        .getLockedUntil()
+                        .isAfter(LocalDateTime.now());
+
+        if (bloqueado) {
+
+            throw new IllegalArgumentException(
+                    "El responsable seleccionado no se encuentra activo."
+            );
+        }
+
+        if (!agent.isAvailableForAssignment()) {
+
+            throw new IllegalArgumentException(
+                    "El responsable seleccionado no se encuentra disponible."
+            );
+        }
+
+        // =====================================================
+        // RN09 / FA10
+        // ACCESO POR SUCURSAL O CATEGORÍA
+        // =====================================================
+        boolean accesoSucursal =
+                agent.getBranch() != null
+                        && Objects.equals(
+                        agent.getBranch().getId(),
+                        c.getBranch().getId()
+                );
+
+        boolean accesoCategoria =
+                agent.getAuthorizedCategories() != null
+                        && agent
+                        .getAuthorizedCategories()
+                        .contains(c.getCategory());
+
+        if (!accesoSucursal && !accesoCategoria) {
+
+            throw new IllegalArgumentException(
+                    "El responsable seleccionado no posee acceso a la sucursal o categoría del caso."
+            );
+        }
+
+        // =====================================================
+        // FA15 - MISMO RESPONSABLE
+        // =====================================================
+        if (old != null
+                && Objects.equals(
+                old.getId(),
+                agent.getId()
+        )) {
+
+            throw new IllegalArgumentException(
+                    "Seleccione un responsable diferente al actual"
+            );
+        }
+
+        boolean reassignment = old != null;
+
+        // =====================================================
+        // FA16 - MOTIVO OBLIGATORIO EN REASIGNACIÓN
+        // =====================================================
+        if (reassignment
+                && (
+                r.reason() == null
+                        || r.reason().isBlank()
+        )) {
+
+            throw new IllegalArgumentException(
+                    "Complete todos los campos obligatorios."
+            );
+        }
+
+        Usuario ejecutor = current.require();
+
+        EstadoCaso oldStatus = c.getStatus();
+
+        // =====================================================
+        // REGISTRO DE LA ASIGNACIÓN
+        // =====================================================
+        c.setResponsible(agent);
+        c.setAssignedAt(LocalDateTime.now());
+        c.setAssignedBy(ejecutor);
+        c.setAssignmentObservation(blank(r.reason()));
+
+        // =====================================================
+        // RN10
+        // Asignación inicial cambia a ASIGNADO.
+        // =====================================================
+        if (old == null
+                && (
+                oldStatus == EstadoCaso.PENDIENTE_ASIGNACION
+                        || oldStatus == EstadoCaso.REABIERTO
+        )) {
+
+            rules.requireTransition(
+                    oldStatus,
+                    EstadoCaso.ASIGNADO
+            );
+
+            c.setStatus(
+                    EstadoCaso.ASIGNADO
+            );
+        }
+
         cases.save(c);
-        String action = reassignment ? "REASIGNACION" : "ASIGNACION";
-        audit.log(req, "CASOS", action, "CASO", c.getCode(), reassignment ? "Caso reasignado. Motivo: " + r.reason() : "Caso asignado a " + agent.getUsername(), ResultadoAuditoria.EXITOSO, old == null ? null : Map.of("responsable", old.getUsername()), Map.of("responsable", agent.getUsername()));
-        notifications.internal(reassignment ? EventoNotificacion.REASIGNACION : EventoNotificacion.ASIGNACION, c, agent, "Se le asignó el caso " + c.getCode());
-        notifications.email(reassignment ? EventoNotificacion.REASIGNACION : EventoNotificacion.ASIGNACION, c, agent.getEmail(), "Se le asignó el caso " + c.getCode());
-        return mapper.internalView(c, true);
+
+        String action =
+                reassignment
+                        ? "REASIGNACION"
+                        : "ASIGNACION";
+
+        Map<String, Object> anterior =
+                old == null
+                        ? null
+                        : Map.of(
+                        "responsable",
+                        old.getUsername()
+                );
+
+        Map<String, Object> nuevo =
+                new LinkedHashMap<>();
+
+        nuevo.put(
+                "responsable",
+                agent.getUsername()
+        );
+
+        nuevo.put(
+                "estado",
+                c.getStatus().name()
+        );
+
+        nuevo.put(
+                "fechaAsignacion",
+                c.getAssignedAt()
+        );
+
+        nuevo.put(
+                "asignadoPor",
+                ejecutor.getUsername()
+        );
+
+        if (blank(r.reason()) != null) {
+            nuevo.put(
+                    "observacion",
+                    blank(r.reason())
+            );
+        }
+
+        // =====================================================
+        // RN18 / RN19 - BITÁCORA
+        // =====================================================
+        audit.log(
+                req,
+                "CASOS",
+                action,
+                "CASO",
+                c.getCode(),
+
+                reassignment
+                        ? "Caso reasignado. Motivo: " + r.reason()
+                        : "Caso asignado a " + agent.getUsername(),
+
+                ResultadoAuditoria.EXITOSO,
+                anterior,
+                nuevo
+        );
+
+        // =====================================================
+        // RN14 - NUEVO RESPONSABLE
+        // =====================================================
+        notifications.internal(
+                reassignment
+                        ? EventoNotificacion.REASIGNACION
+                        : EventoNotificacion.ASIGNACION,
+                c,
+                agent,
+                "Se le asignó el caso " + c.getCode()
+        );
+
+        if (agent.getEmail() != null
+                && !agent.getEmail().isBlank()) {
+
+            notifications.email(
+                    reassignment
+                            ? EventoNotificacion.REASIGNACION
+                            : EventoNotificacion.ASIGNACION,
+                    c,
+                    agent.getEmail(),
+                    "Se le asignó el caso " + c.getCode()
+            );
+        }
+
+        // =====================================================
+        // FA14 - RESPONSABLE ANTERIOR
+        // =====================================================
+        if (reassignment && old != null) {
+
+            notifications.internal(
+                    EventoNotificacion.REASIGNACION,
+                    c,
+                    old,
+                    "El caso "
+                            + c.getCode()
+                            + " fue reasignado."
+            );
+
+            if (old.getEmail() != null
+                    && !old.getEmail().isBlank()) {
+
+                notifications.email(
+                        EventoNotificacion.REASIGNACION,
+                        c,
+                        old.getEmail(),
+                        "El caso "
+                                + c.getCode()
+                                + " fue reasignado."
+                );
+            }
+        }
+
+        return mapper.internalView(
+                c,
+                true
+        );
     }
 
     @Transactional
@@ -341,18 +1353,178 @@ public class ServicioCasos {
         return mapper.internalView(c, true);
     }
 
-    @Transactional
-    public VistaEvidencia addEvidence(Long id, String description, boolean visibleToClient, MultipartFile file, HttpServletRequest req) {
+    // =========================================================
+    // CU-07 - CANTIDAD DISPONIBLE
+    // =========================================================
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> evidenceAvailability(
+            Long id,
+            TipoAsociacionEvidencia associationType,
+            Long followUpId
+    ) {
         Caso c = requireAccessible(id);
-        if (c.getStatus() == EstadoCaso.CERRADO)
-            throw new IllegalArgumentException("El caso se encuentra cerrado y no puede modificarse.");
+        validarEstadoParaEvidencia(c);
+
+        Seguimiento seguimiento = resolverSeguimientoEvidencia(c, associationType, followUpId);
+
+        long usados = seguimiento == null
+                ? evidenceRepository.countByComplaintCaseIdAndFollowUpIsNullAndStatus(
+                c.getId(), EstadoEvidencia.ACTIVA)
+                : evidenceRepository.countByFollowUpIdAndStatus(
+                seguimiento.getId(), EstadoEvidencia.ACTIVA);
+
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("limit", 5);
+        respuesta.put("used", usados);
+        respuesta.put("available", Math.max(0, 5 - usados));
+        respuesta.put("visibilityEditable", seguimiento == null);
+        respuesta.put("visibleToClient", seguimiento != null && seguimiento.isVisibleToClient());
+
+        return respuesta;
+    }
+
+    // =========================================================
+    // CU-07 - ADJUNTAR EVIDENCIA
+    // =========================================================
+
+    @Transactional
+    public VistaEvidencia addEvidence(
+            Long id,
+            TipoAsociacionEvidencia associationType,
+            Long followUpId,
+            String description,
+            boolean visibleToClient,
+            long version,
+            MultipartFile file,
+            HttpServletRequest req
+    ) {
+        Caso c = requireAccessible(id);
+
+        // FA05 / FA17 - información cambió durante el proceso
+        if (c.getVersion() != version) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La operación fue rechazada porque la información cambió durante el proceso."
+            );
+        }
+
+        validarEstadoParaEvidencia(c);
+
         Usuario u = current.require();
-        if (u.getRole().getCode() == CodigoRol.AGENTE_ATENCION && (c.getResponsible() == null || !Objects.equals(c.getResponsible().getId(), u.getId())))
-            throw new IllegalArgumentException("No posee permisos para realizar esta acción.");
-        Evidencia e = evidence.store(c, null, List.of(file), visibleToClient, description, req).get(0);
-        if (visibleToClient && c.getEmail() != null)
-            notifications.email(EventoNotificacion.SEGUIMIENTO_VISIBLE, c, c.getEmail(), "Se adjuntó una nueva evidencia visible a su caso.");
+
+        if (u.getRole().getCode() == CodigoRol.AGENTE_ATENCION
+                && (c.getResponsible() == null
+                || !Objects.equals(c.getResponsible().getId(), u.getId()))) {
+            throw new IllegalArgumentException(
+                    "No posee permisos para realizar esta acción."
+            );
+        }
+
+        String descripcion = blank(description);
+
+        if (descripcion == null) {
+            throw new IllegalArgumentException(
+                    "Complete todos los campos obligatorios."
+            );
+        }
+
+        Seguimiento seguimiento = resolverSeguimientoEvidencia(
+                c,
+                associationType,
+                followUpId
+        );
+
+        // FA08 - si pertenece a seguimiento, hereda su visibilidad.
+        boolean visibilidadFinal = seguimiento != null
+                ? seguimiento.isVisibleToClient()
+                : visibleToClient;
+
+        List<Evidencia> guardadas = evidence.store(
+                c,
+                seguimiento,
+                List.of(file),
+                visibilidadFinal,
+                descripcion,
+                req
+        );
+
+        if (guardadas.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No fue posible almacenar el archivo."
+            );
+        }
+
+        Evidencia e = guardadas.get(0);
+
+        if (visibilidadFinal
+                && c.getEmail() != null
+                && !c.getEmail().isBlank()) {
+            notifications.email(
+                    EventoNotificacion.SEGUIMIENTO_VISIBLE,
+                    c,
+                    c.getEmail(),
+                    "Se adjuntó una nueva evidencia visible a su caso."
+            );
+        }
+
         return mapper.evidence(e);
+    }
+
+    private void validarEstadoParaEvidencia(Caso c) {
+        if (c.getStatus() == EstadoCaso.CERRADO) {
+            throw new IllegalArgumentException(
+                    "El caso se encuentra cerrado y no puede modificarse."
+            );
+        }
+
+        if (Set.of(EstadoCaso.RECHAZADO, EstadoCaso.CANCELADO)
+                .contains(c.getStatus())) {
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado "
+                            + c.getStatus()
+                            + " y no permite esta operación."
+            );
+        }
+    }
+
+    private Seguimiento resolverSeguimientoEvidencia(
+            Caso c,
+            TipoAsociacionEvidencia associationType,
+            Long followUpId
+    ) {
+        if (associationType == null) {
+            throw new IllegalArgumentException(
+                    "Complete todos los campos obligatorios."
+            );
+        }
+
+        if (associationType == TipoAsociacionEvidencia.CASO) {
+            return null;
+        }
+
+        if (followUpId == null) {
+            throw new IllegalArgumentException(
+                    "Complete todos los campos obligatorios."
+            );
+        }
+
+        Seguimiento seguimiento = followUps.findById(followUpId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existen seguimientos disponibles para asociar la evidencia"
+                ));
+
+        if (seguimiento.getComplaintCase() == null
+                || !Objects.equals(
+                seguimiento.getComplaintCase().getId(),
+                c.getId()
+        )) {
+            throw new IllegalArgumentException(
+                    "No existen seguimientos disponibles para asociar la evidencia"
+            );
+        }
+
+        return seguimiento;
     }
 
     public Caso requireAccessible(Long id) {

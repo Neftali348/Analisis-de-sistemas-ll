@@ -12,11 +12,16 @@ import java.util.Set;
 @Service
 public class ServicioSeguridadArchivos {
 
-    // Máximo permitido: 2 MB
-    private static final long MAX =
+    // =========================================================
+    // RN07
+    // Máximo permitido por archivo: 2 MB
+    // =========================================================
+
+    private static final long MAX_BYTES =
             2L * 1024 * 1024;
 
-    private static final Set<String> EXTENSIONES_PERMITIDAS =
+    private static final Set<String>
+            EXTENSIONES_PERMITIDAS =
             Set.of(
                     "jpg",
                     "jpeg",
@@ -24,48 +29,69 @@ public class ServicioSeguridadArchivos {
                     "pdf"
             );
 
-    private static final Set<String> MIME_PERMITIDOS =
+    private static final Set<String>
+            MIME_PERMITIDOS =
             Set.of(
                     "image/jpeg",
                     "image/png",
                     "application/pdf"
             );
 
-    public void validate(MultipartFile archivo) {
+
+    // =========================================================
+    // VALIDACIÓN PRINCIPAL
+    // =========================================================
+
+    public void validate(
+            MultipartFile archivo
+    ) {
 
         // =====================================================
-        // ARCHIVO VACÍO
+        // FA13
+        // Archivo vacío, dañado o ilegible
         // =====================================================
 
         if (
                 archivo == null ||
-                        archivo.isEmpty()
+                        archivo.isEmpty() ||
+                        archivo.getSize() <= 0
         ) {
 
             throw new IllegalArgumentException(
-                    "El archivo está vacío."
+                    "El archivo está vacío, dañado o no puede ser procesado"
             );
         }
 
+
         // =====================================================
-        // TAMAÑO MÁXIMO 2 MB
+        // FA10 / AN02 No. 12
+        // Tamaño máximo 2 MB
         // =====================================================
 
-        if (archivo.getSize() > MAX) {
+        if (
+                archivo.getSize() >
+                        MAX_BYTES
+        ) {
 
             throw new IllegalArgumentException(
                     "El archivo supera el tamaño máximo permitido de 2 MB."
             );
         }
 
+
         // =====================================================
-        // NOMBRE Y EXTENSIÓN
+        // FA09 / AN02 No. 11
+        // Extensión
         // =====================================================
 
         String nombreOriginal =
-                Optional.ofNullable(
-                        archivo.getOriginalFilename()
-                ).orElse("");
+                Optional
+                        .ofNullable(
+                                archivo
+                                        .getOriginalFilename()
+                        )
+                        .orElse("")
+                        .trim();
 
         String extension =
                 obtenerExtension(
@@ -73,8 +99,51 @@ public class ServicioSeguridadArchivos {
                 );
 
         if (
-                !EXTENSIONES_PERMITIDAS.contains(
-                        extension
+                !EXTENSIONES_PERMITIDAS
+                        .contains(extension)
+        ) {
+
+            throw new IllegalArgumentException(
+                    "El formato del archivo no está permitido."
+            );
+        }
+
+
+        // =====================================================
+        // FA09 / RN07
+        // MIME
+        // =====================================================
+
+        String mime =
+                Optional
+                        .ofNullable(
+                                archivo.getContentType()
+                        )
+                        .orElse("")
+                        .trim()
+                        .toLowerCase(
+                                Locale.ROOT
+                        );
+
+        if (
+                !MIME_PERMITIDOS
+                        .contains(mime)
+        ) {
+
+            throw new IllegalArgumentException(
+                    "El formato del archivo no está permitido."
+            );
+        }
+
+
+        // =====================================================
+        // EXTENSIÓN ↔ MIME
+        // =====================================================
+
+        if (
+                !mimeCoincideConExtension(
+                        extension,
+                        mime
                 )
         ) {
 
@@ -83,61 +152,67 @@ public class ServicioSeguridadArchivos {
             );
         }
 
-        // =====================================================
-        // MIME
-        // =====================================================
-
-        String mime =
-                Optional.ofNullable(
-                                archivo.getContentType()
-                        )
-                        .orElse("")
-                        .trim()
-                        .toLowerCase(Locale.ROOT);
-
-        if (
-                !MIME_PERMITIDOS.contains(
-                        mime
-                )
-        ) {
-
-            throw new IllegalArgumentException(
-                    "El tipo MIME del archivo no está permitido."
-            );
-        }
-
-        /*
-         * También comprobamos que extensión y MIME
-         * sean compatibles.
-         */
-        validarMimeExtension(
-                extension,
-                mime
-        );
-
-        // =====================================================
-        // CONTENIDO REAL
-        // =====================================================
 
         try {
 
             byte[] contenido =
                     archivo.getBytes();
 
+
+            // =================================================
+            // FA13
+            // Segunda protección contra archivo vacío
+            // =================================================
+
             if (
-                    !firmaValida(
+                    contenido.length == 0
+            ) {
+
+                throw new IllegalArgumentException(
+                        "El archivo está vacío, dañado o no puede ser procesado"
+                );
+            }
+
+
+            // =================================================
+            // FA09
+            // La firma debe corresponder al formato declarado.
+            // =================================================
+
+            if (
+                    !firmaInicialValida(
                             extension,
                             contenido
                     )
             ) {
 
                 throw new IllegalArgumentException(
-                        "El contenido del archivo no coincide con su formato."
+                        "El formato del archivo no está permitido."
                 );
             }
 
+
             // =================================================
-            // PDF - CONTENIDO POTENCIALMENTE PELIGROSO
+            // FA13
+            // Comprobar que el archivo no parezca truncado.
+            // =================================================
+
+            if (
+                    !estructuraBasicaValida(
+                            extension,
+                            contenido
+                    )
+            ) {
+
+                throw new IllegalArgumentException(
+                        "El archivo está vacío, dañado o no puede ser procesado"
+                );
+            }
+
+
+            // =================================================
+            // FA12
+            // Validación básica de contenido peligroso
             // =================================================
 
             if (
@@ -152,7 +227,7 @@ public class ServicioSeguridadArchivos {
         } catch (IOException e) {
 
             throw new IllegalArgumentException(
-                    "No fue posible validar el archivo."
+                    "El archivo está vacío, dañado o no puede ser procesado"
             );
         }
     }
@@ -190,6 +265,7 @@ public class ServicioSeguridadArchivos {
                 .substring(
                         posicion + 1
                 )
+                .trim()
                 .toLowerCase(
                         Locale.ROOT
                 );
@@ -200,39 +276,31 @@ public class ServicioSeguridadArchivos {
     // EXTENSIÓN ↔ MIME
     // =========================================================
 
-    private void validarMimeExtension(
+    private boolean mimeCoincideConExtension(
             String extension,
             String mime
     ) {
 
-        boolean valido =
-                switch (extension) {
+        return switch (extension) {
 
-                    case "jpg", "jpeg" ->
-                            mime.equals(
-                                    "image/jpeg"
-                            );
+            case "jpg", "jpeg" ->
+                    mime.equals(
+                            "image/jpeg"
+                    );
 
-                    case "png" ->
-                            mime.equals(
-                                    "image/png"
-                            );
+            case "png" ->
+                    mime.equals(
+                            "image/png"
+                    );
 
-                    case "pdf" ->
-                            mime.equals(
-                                    "application/pdf"
-                            );
+            case "pdf" ->
+                    mime.equals(
+                            "application/pdf"
+                    );
 
-                    default ->
-                            false;
-                };
-
-        if (!valido) {
-
-            throw new IllegalArgumentException(
-                    "La extensión del archivo no coincide con su tipo MIME."
-            );
-        }
+            default ->
+                    false;
+        };
     }
 
 
@@ -240,15 +308,18 @@ public class ServicioSeguridadArchivos {
     // FIRMA REAL DEL ARCHIVO
     // =========================================================
 
-    private boolean firmaValida(
+    private boolean firmaInicialValida(
             String extension,
             byte[] contenido
     ) {
 
         return switch (extension) {
 
-            // JPEG:
+            // =================================================
+            // JPEG
             // FF D8 FF
+            // =================================================
+
             case "jpg", "jpeg" ->
 
                     contenido.length >= 3 &&
@@ -263,8 +334,11 @@ public class ServicioSeguridadArchivos {
                                     == 0xff;
 
 
-            // PNG:
+            // =================================================
+            // PNG
             // 89 50 4E 47 0D 0A 1A 0A
+            // =================================================
+
             case "png" ->
 
                     contenido.length >= 8 &&
@@ -294,8 +368,11 @@ public class ServicioSeguridadArchivos {
                                     == 0x0a;
 
 
-            // PDF:
+            // =================================================
+            // PDF
             // %PDF-
+            // =================================================
+
             case "pdf" ->
 
                     contenido.length >= 5 &&
@@ -305,7 +382,9 @@ public class ServicioSeguridadArchivos {
                                     0,
                                     5,
                                     StandardCharsets.US_ASCII
-                            ).equals("%PDF-");
+                            ).equals(
+                                    "%PDF-"
+                            );
 
 
             default ->
@@ -315,7 +394,140 @@ public class ServicioSeguridadArchivos {
 
 
     // =========================================================
-    // SEGURIDAD BÁSICA PDF
+    // COMPROBACIÓN BÁSICA DE ARCHIVO DAÑADO
+    // =========================================================
+
+    private boolean estructuraBasicaValida(
+            String extension,
+            byte[] contenido
+    ) {
+
+        return switch (extension) {
+
+            // =================================================
+            // JPEG
+            // Debe terminar FF D9
+            // =================================================
+
+            case "jpg", "jpeg" ->
+
+                    contenido.length >= 4 &&
+
+                            (
+                                    contenido[
+                                            contenido.length - 2
+                                            ] & 0xff
+                            ) == 0xff &&
+
+                            (
+                                    contenido[
+                                            contenido.length - 1
+                                            ] & 0xff
+                            ) == 0xd9;
+
+
+            // =================================================
+            // PNG
+            // Debe contener el chunk IEND.
+            // =================================================
+
+            case "png" ->
+                    contieneSecuencia(
+                            contenido,
+                            new byte[]{
+                                    0x49,
+                                    0x45,
+                                    0x4e,
+                                    0x44
+                            }
+                    );
+
+
+            // =================================================
+            // PDF
+            // Debe contener marca de cierre %%EOF.
+            // =================================================
+
+            case "pdf" -> {
+
+                String texto =
+                        new String(
+                                contenido,
+                                StandardCharsets.ISO_8859_1
+                        );
+
+                yield texto.contains(
+                        "%%EOF"
+                );
+            }
+
+
+            default ->
+                    false;
+        };
+    }
+
+
+    // =========================================================
+    // BUSCAR SECUENCIA BINARIA
+    // =========================================================
+
+    private boolean contieneSecuencia(
+            byte[] contenido,
+            byte[] patron
+    ) {
+
+        if (
+                contenido == null ||
+                        patron == null ||
+                        contenido.length <
+                                patron.length
+        ) {
+
+            return false;
+        }
+
+        for (
+                int i = 0;
+                i <=
+                        contenido.length -
+                                patron.length;
+                i++
+        ) {
+
+            boolean coincide =
+                    true;
+
+            for (
+                    int j = 0;
+                    j < patron.length;
+                    j++
+            ) {
+
+                if (
+                        contenido[i + j] !=
+                                patron[j]
+                ) {
+
+                    coincide =
+                            false;
+
+                    break;
+                }
+            }
+
+            if (coincide) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    // =========================================================
+    // FA12
+    // SEGURIDAD BÁSICA DE PDF
     // =========================================================
 
     private void validarPdfSeguro(
@@ -331,21 +543,32 @@ public class ServicioSeguridadArchivos {
                                 Locale.ROOT
                         );
 
+
         /*
-         * Elementos que podrían provocar
-         * ejecución de acciones o incorporar
-         * otros archivos.
+         * Acciones o elementos que no necesitamos aceptar
+         * como evidencia y que podrían producir comportamiento
+         * activo dentro de un PDF.
          */
         String[] patronesPeligrosos = {
 
                 "/javascript",
                 "/js",
                 "/launch",
+
                 "/embeddedfile",
                 "/embeddedfiles",
+
                 "/richmedia",
-                "/openaction"
+
+                "/openaction",
+
+                "/additionalactions",
+
+                "/submitform",
+
+                "/importdata"
         };
+
 
         for (
                 String patron :
@@ -359,7 +582,7 @@ public class ServicioSeguridadArchivos {
             ) {
 
                 throw new IllegalArgumentException(
-                        "El archivo contiene contenido potencialmente inseguro."
+                        "El archivo no superó la validación de seguridad"
                 );
             }
         }

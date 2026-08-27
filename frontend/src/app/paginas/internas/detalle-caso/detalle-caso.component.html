@@ -1,207 +1,2347 @@
 <div class="page">
-    <div class="page-head">
-        <div><a routerLink="/app/casos" class="muted">← Volver a casos</a>
-            <h1 *ngIf="c" class="mono">{{c.code}}</h1>
-            <p *ngIf="c">{{c.type}} · {{c.branch}} · Registrado {{c.createdAt|date:'dd/MM/yyyy HH:mm'}}</p>
-        </div>
-        <div *ngIf="c" style="display:flex;gap:8px;flex-wrap:wrap"><span
-                class="badge blue">{{label(c.status)}}</span><span class="badge"
-                [class.red]="c.priority==='CRITICA'||c.slaBreached"
-                [class.amber]="c.priority==='ALTA'">{{c.priority}}</span><span *ngIf="c.slaBreached"
-                class="badge red">SLA VENCIDO</span></div>
+
+    <!-- =====================================================
+         CABECERA / REGRESAR - CU-04 PASOS 27 Y 28
+         ===================================================== -->
+    <header class="page-head">
+  
+      <div>
+        <a
+          routerLink="/app/casos"
+          class="back-link">
+          ← Regresar
+        </a>
+  
+        <span class="page-kicker">
+          GESTIÓN DE CASOS
+        </span>
+  
+        <h1>Detalle del Caso</h1>
+  
+        <p *ngIf="c">
+          <strong class="mono">{{ c.code }}</strong>
+          · {{ label(c.type) }}
+        </p>
+      </div>
+  
+      <div
+        *ngIf="c"
+        class="head-badges">
+  
+        <span class="badge status-badge">
+          {{ label(c.status) }}
+        </span>
+  
+        <span
+          class="badge"
+          [ngClass]="{
+            'priority-critical': c.priority === 'CRITICA',
+            'priority-high': c.priority === 'ALTA',
+            'priority-medium': c.priority === 'MEDIA',
+            'priority-low': c.priority === 'BAJA'
+          }">
+          {{ label(c.priority) }}
+        </span>
+  
+        <span
+          class="badge"
+          [ngClass]="{
+            'sla-danger': c.slaBreached,
+            'sla-warning': c.slaWarningSent && !c.slaBreached,
+            'sla-ok': !c.slaWarningSent && !c.slaBreached
+          }">
+          {{ slaTexto() }}
+        </span>
+  
+      </div>
+  
+    </header>
+  
+  
+    <div
+      *ngIf="loading"
+      class="loading-panel">
+  
+      <span class="spinner"></span>
+      <span>Cargando información del caso...</span>
+  
     </div>
-    <div *ngIf="error" class="alert alert-error">{{error}}</div><ng-container *ngIf="c">
-        <div class="grid grid-3">
-            <div class="stat">
-                <div class="label">Cliente</div><strong>{{c.anonymous?'ANÓNIMO':(c.fullName||'—')}}</strong>
-                <div class="muted">{{c.email||'Sin correo'}}</div>
-            </div>
-            <div class="stat">
-                <div class="label">Responsable</div><strong>{{c.responsible||'Sin asignar'}}</strong>
-            </div>
-            <div class="stat">
-                <div class="label">Vencimiento SLA</div><strong>{{c.slaDeadlineAt?(c.slaDeadlineAt|date:'dd/MM/yy
-                    HH:mm'):'—'}}</strong>
-            </div>
+  
+  
+    <ng-container *ngIf="c && !loading">
+  
+      <!-- =====================================================
+           FA11 - CASO CERRADO SOLO LECTURA
+           ===================================================== -->
+      <div
+        *ngIf="esSoloLectura"
+        class="notice notice-dark">
+  
+        <strong>Caso Cerrado.</strong>
+  
+        <span>
+          La información se encuentra en modo de solo lectura.
+          Para efectuar cambios se requiere una reapertura autorizada.
+        </span>
+  
+      </div>
+  
+  
+      <!-- =====================================================
+           PASO 11 - INFORMACIÓN GENERAL DEL CASO
+           ===================================================== -->
+      <section class="card">
+  
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">INFORMACIÓN GENERAL</span>
+            <h2>Información General del Caso</h2>
+          </div>
+  
+          <div class="case-flags">
+  
+            <span
+              *ngIf="c.anonymous"
+              class="badge neutral-badge">
+              ANÓNIMO
+            </span>
+  
+            <span
+              *ngIf="c.confidential"
+              class="badge confidential">
+              CONFIDENCIAL
+            </span>
+  
+          </div>
         </div>
-        <div class="card">
-            <div class="split">
-                <h3>Detalle original</h3><span *ngIf="c.confidential" class="badge purple">CONFIDENCIAL</span>
+  
+  
+        <!-- a-n del paso 11 -->
+        <div class="detail-grid">
+  
+          <div class="detail-item">
+            <span>Código de seguimiento</span>
+            <strong class="mono">{{ c.code }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Tipo de caso</span>
+            <strong>{{ label(c.type) }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Sucursal</span>
+            <strong>{{ c.branch || '—' }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Pedido o factura</span>
+            <strong>{{ c.orderNumber || '—' }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Fecha y hora del incidente</span>
+            <strong>
+              {{
+                c.incidentAt
+                  ? (c.incidentAt | date:'dd/MM/yyyy HH:mm')
+                  : '—'
+              }}
+            </strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Categoría</span>
+            <strong>{{ label(c.category) }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Prioridad</span>
+            <strong>{{ label(c.priority) }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Estado actual</span>
+            <strong>{{ label(c.status) }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Responsable</span>
+            <strong>{{ c.responsible || 'Sin asignar' }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Fecha de creación</span>
+            <strong>
+              {{ c.createdAt | date:'dd/MM/yyyy HH:mm' }}
+            </strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Última actualización</span>
+            <strong>
+              {{ c.updatedAt | date:'dd/MM/yyyy HH:mm' }}
+            </strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Tiempo consumido SLA</span>
+            <strong>{{ tiempoConsumidoSla() }}</strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Fecha límite primera respuesta</span>
+            <strong>
+              {{
+                c.slaDeadlineAt
+                  ? (c.slaDeadlineAt | date:'dd/MM/yyyy HH:mm')
+                  : '—'
+              }}
+            </strong>
+          </div>
+  
+          <div class="detail-item">
+            <span>Cumplimiento del SLA</span>
+            <strong
+              [class.text-danger]="c.slaBreached"
+              [class.text-warning]="c.slaWarningSent && !c.slaBreached"
+              [class.text-ok]="!c.slaWarningSent && !c.slaBreached">
+              {{ slaTexto() }}
+            </strong>
+          </div>
+  
+        </div>
+  
+  
+        <!-- Datos del cliente autorizados -->
+        <div class="subsection">
+  
+          <h3>Datos del Cliente Autorizados</h3>
+  
+          <div
+            *ngIf="c.anonymous"
+            class="empty-inline">
+            Registro anónimo. No se muestran datos personales.
+          </div>
+  
+          <div
+            *ngIf="!c.anonymous"
+            class="detail-grid client-grid">
+  
+            <div class="detail-item">
+              <span>Nombre</span>
+              <strong>{{ c.fullName || '—' }}</strong>
             </div>
-            <p style="white-space:pre-wrap">{{c.description}}</p>
-            <div class="grid grid-3">
-                <div><span class="muted">Categoría</span><br><strong>{{label(c.category||'')}}</strong></div>
-                <div><span class="muted">Incidente</span><br><strong>{{c.incidentAt|date:'dd/MM/yyyy HH:mm'}}</strong>
+  
+            <div class="detail-item">
+              <span>Correo electrónico</span>
+              <strong>{{ c.email || '—' }}</strong>
+            </div>
+  
+            <div class="detail-item">
+              <span>Teléfono</span>
+              <strong>{{ c.phone || '—' }}</strong>
+            </div>
+  
+            <div class="detail-item">
+              <span>Contacto autorizado</span>
+              <strong>
+                {{ c.contactAuthorized ? 'Sí' : 'No' }}
+              </strong>
+            </div>
+  
+          </div>
+  
+        </div>
+  
+  
+        <div class="subsection">
+  
+          <h3>Descripción Original</h3>
+  
+          <p class="description">
+            {{ c.description }}
+          </p>
+  
+        </div>
+  
+      </section>
+  
+  
+      <!-- =====================================================
+           PASO 12 - LÍNEA DE TIEMPO
+           ===================================================== -->
+      <section class="card">
+  
+        <div class="section-head">
+  
+          <div>
+            <span class="section-kicker">HISTORIAL</span>
+            <h2>Línea de Tiempo</h2>
+          </div>
+  
+          <span class="count-pill">
+            {{ c.followUps.length }}
+          </span>
+  
+        </div>
+  
+        <div
+          *ngIf="!c.followUps.length"
+          class="empty-state">
+          No existen seguimientos registrados.
+        </div>
+  
+        <div
+          *ngIf="c.followUps.length"
+          class="timeline">
+  
+          <article
+            *ngFor="let f of c.followUps"
+            class="timeline-item">
+  
+            <div class="timeline-dot"></div>
+  
+            <div class="timeline-content">
+  
+              <div class="timeline-head">
+  
+                <div>
+                  <strong>{{ label(f.type) }}</strong>
+  
+                  <span
+                    class="mini-badge"
+                    [class.internal-mini]="!f.visibleToClient">
+  
+                    {{
+                      f.visibleToClient
+                        ? 'Visible para cliente'
+                        : 'Nota interna'
+                    }}
+  
+                  </span>
                 </div>
-                <div><span class="muted">Orden/factura</span><br><strong>{{c.orderNumber||'—'}}</strong></div>
+  
+                <time>
+                  {{ f.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                </time>
+  
+              </div>
+  
+              <p>{{ f.description }}</p>
+  
+              <div class="timeline-meta">
+  
+                <span>
+                  Usuario:
+                  <strong>{{ f.author }}</strong>
+                </span>
+  
+                <span>
+                  Estado resultante:
+                  <strong>{{ label(f.resultingStatus) }}</strong>
+                </span>
+  
+              </div>
+  
             </div>
-            <div *ngIf="c.administrativeObservation" class="alert alert-info">{{c.administrativeObservation}}</div>
+  
+          </article>
+  
         </div>
-        <div *ngIf="auth.has('CASE_ASSIGN')" class="card">
-            <h3>{{c.responsibleId?'Reasignar':'Asignar'}} responsable</h3>
-            <div class="grid grid-2">
-                <div class="field"><label>Agente activo</label><select [(ngModel)]="assign.responsibleId">
-                        <option [ngValue]="null">Seleccione...</option>
-                        <option *ngFor="let a of agents" [ngValue]="a['id']">{{a['fullName']}} · {{a['openCases']}}
-                            abiertos</option>
-                    </select></div>
-                <div class="field"><label>Motivo {{c.responsibleId?'*':''}}</label><input [(ngModel)]="assign.reason"
-                        placeholder="Obligatorio al reasignar"></div>
-            </div>
-            <div class="form-actions"><button class="btn btn-primary" (click)="doAssign()">Guardar asignación</button>
-            </div>
+  
+      </section>
+  
+  
+      <!-- =====================================================
+           PASO 13 - EVIDENCIAS Y DOCUMENTOS
+           ===================================================== -->
+      <section class="card">
+  
+        <div class="section-head">
+  
+          <div>
+            <span class="section-kicker">DOCUMENTOS</span>
+            <h2>Evidencias y Documentos</h2>
+          </div>
+  
+          <span class="count-pill">
+            {{ c.evidences.length }}
+          </span>
+  
         </div>
-        <div *ngIf="auth.has('CASE_UPDATE')" class="card">
-            <h3>Información administrativa</h3>
-            <div class="grid grid-3">
-                <div class="field"><label>Tipo</label><select [(ngModel)]="edit.type">
-                        <option *ngFor="let x of types" [value]="x">{{x}}</option>
-                    </select></div>
-                <div class="field"><label>Sucursal</label><select [(ngModel)]="edit.branchId">
-                        <option *ngFor="let b of branches" [ngValue]="b.id">{{b.name}}</option>
-                    </select></div>
-                <div class="field"><label>Categoría</label><select [(ngModel)]="edit.category">
-                        <option *ngFor="let x of categories" [value]="x">{{label(x)}}</option>
-                    </select></div>
-                <div class="field"><label>Prioridad</label><select [(ngModel)]="edit.priority">
-                        <option *ngFor="let x of priorities" [value]="x">{{x}}</option>
-                    </select></div>
-                <div class="field"><label>Orden/factura</label><input [(ngModel)]="edit.orderNumber"></div>
-                <div class="field"><label>Observación administrativa</label><input
-                        [(ngModel)]="edit.administrativeObservation"></div>
-            </div>
-            <div class="form-actions"><button class="btn btn-primary" (click)="saveEdit()">Guardar cambios</button>
-            </div>
+  
+        <div
+          *ngIf="!c.evidences.length"
+          class="empty-state">
+          No existen evidencias o documentos relacionados con el caso.
         </div>
-        <div *ngIf="auth.has('CASE_PRIORITY')" class="card">
-            <h3>Cambiar prioridad</h3>
-            <div class="split"><select [(ngModel)]="newPriority"
-                    style="padding:10px;border:1px solid var(--border);border-radius:10px">
-                    <option *ngFor="let x of priorities" [value]="x">{{x}}</option>
-                </select><button class="btn btn-outline" (click)="changePriority()">Aplicar prioridad</button></div>
+  
+        <div
+          *ngIf="c.evidences.length"
+          class="documents-table-wrap">
+  
+          <table class="documents-table">
+  
+            <thead>
+              <tr>
+                <th>Archivo</th>
+                <th>Descripción</th>
+                <th>Tipo</th>
+                <th>Tamaño</th>
+                <th>Visibilidad</th>
+                <th>Fecha</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+  
+            <tbody>
+  
+              <tr *ngFor="let e of c.evidences">
+  
+                <td>
+                  <strong>{{ e.originalName }}</strong>
+                </td>
+  
+                <td>
+                  {{ e.description || '—' }}
+                </td>
+  
+                <td>
+                  {{ e.contentType }}
+                </td>
+  
+                <td>
+                  {{ bytes(e.sizeBytes) }}
+                </td>
+  
+                <td>
+                  {{
+                    e.visibleToClient
+                      ? 'Visible para cliente'
+                      : 'Interno'
+                  }}
+                </td>
+  
+                <td>
+                  {{ e.uploadedAt | date:'dd/MM/yyyy HH:mm' }}
+                </td>
+  
+                <td>
+                  <button
+                    type="button"
+                    class="btn btn-outline btn-sm"
+                    (click)="download(e.id, e.originalName)">
+                    Descargar
+                  </button>
+                </td>
+  
+              </tr>
+  
+            </tbody>
+  
+          </table>
+  
         </div>
-        <div class="card">
-            <h3>Seguimientos</h3>
-            <div *ngIf="!c.followUps.length" class="muted">Aún no hay seguimientos.</div>
-            <div class="timeline">
-                <div *ngFor="let f of c.followUps" class="timeline-item">
-                    <div class="split"><strong>{{label(f.type)}}</strong><small>{{f.createdAt|date:'dd/MM/yyyy
-                            HH:mm'}}</small></div>
-                    <p style="white-space:pre-wrap;margin:6px 0">{{f.description}}</p><small class="muted">{{f.author}}
-                        · {{f.visibleToClient?'Visible al cliente':'Interno'}} · {{label(f.resultingStatus)}}</small>
+  
+      </section>
+  
+  
+      <!-- =====================================================
+           PASO 14 - NOTAS INTERNAS
+           ===================================================== -->
+      <section
+        *ngIf="
+          auth.has('CASE_VIEW') &&
+          (
+            c.administrativeObservation ||
+            seguimientosInternos.length
+          )
+        "
+        class="card internal-card">
+  
+        <div class="section-head">
+  
+          <div>
+            <span class="section-kicker">USO INTERNO</span>
+            <h2>Notas Internas</h2>
+          </div>
+  
+        </div>
+  
+        <div
+          *ngIf="c.administrativeObservation"
+          class="internal-note">
+  
+          <strong>Observación administrativa</strong>
+  
+          <p>
+            {{ c.administrativeObservation }}
+          </p>
+  
+        </div>
+  
+        <div
+          *ngFor="let f of seguimientosInternos"
+          class="internal-note">
+  
+          <div class="internal-note-head">
+            <strong>{{ label(f.type) }}</strong>
+            <span>{{ f.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+  
+          <p>{{ f.description }}</p>
+  
+          <small>{{ f.author }}</small>
+  
+        </div>
+  
+      </section>
+  
+  
+      <!-- =====================================================
+           PASO 15 - ACCIONES PERMITIDAS
+           ===================================================== -->
+      <section class="card actions-card">
+  
+        <div class="section-head">
+          <div>
+            <span class="section-kicker">ADMINISTRACIÓN</span>
+            <h2>Acciones Disponibles</h2>
+          </div>
+        </div>
+  
+        <div
+          *ngIf="
+            !puedeEditar &&
+            !puedeAsignarResponsable &&
+            !puedeCambiarEstadoNormal &&
+            !puedeRegistrarSeguimiento &&
+            !puedeAdjuntarEvidencia &&
+            !puedeResolver &&
+            !puedeCerrar &&
+            !puedeRechazarOCancelar &&
+            !puedeReabrir
+          "
+          class="empty-inline">
+          No existen acciones disponibles para su rol y el estado actual del caso.
+        </div>
+  
+        <div class="actions-grid">
+  
+          <button
+            *ngIf="puedeEditar"
+            type="button"
+            class="action-button"
+            (click)="abrirPanel('EDITAR')">
+  
+            <span>01</span>
+            <strong>Editar Información del Caso</strong>
+            <small>Clasificación y prioridad</small>
+  
+          </button>
+  
+          <button
+            *ngIf="puedeAsignarResponsable"
+            type="button"
+            class="action-button"
+            (click)="abrirPanel('ASIGNAR')">
+  
+            <span>02</span>
+            <strong>
+              {{
+                c.responsibleId
+                  ? 'Reasignar Responsable'
+                  : 'Asignar Responsable'
+              }}
+            </strong>
+            <small>CU-05</small>
+  
+          </button>
+  
+          <button
+            *ngIf="puedeCambiarEstadoNormal"
+            type="button"
+            class="action-button"
+            (click)="abrirPanel('ESTADO')">
+  
+            <span>03</span>
+            <strong>Cambiar Estado</strong>
+            <small>Transiciones permitidas RN10</small>
+  
+          </button>
+  
+          <button
+            *ngIf="puedeRegistrarSeguimiento"
+            type="button"
+            class="action-button"
+            (click)="abrirPanel('SEGUIMIENTO')">
+  
+            <span>04</span>
+            <strong>Registrar Seguimiento</strong>
+            <small>CU-06</small>
+  
+          </button>
+  
+          <button
+            *ngIf="puedeAdjuntarEvidencia"
+            type="button"
+            class="action-button"
+            (click)="abrirPanel('EVIDENCIA')">
+  
+            <span>05</span>
+            <strong>Adjuntar Evidencia</strong>
+            <small>CU-07</small>
+  
+          </button>
+  
+          <button
+            *ngIf="puedeResolver"
+            type="button"
+            class="action-button"
+            (click)="abrirPanel('RESOLUCION')">
+  
+            <span>06</span>
+            <strong>Registrar Resolución</strong>
+            <small>CU-08</small>
+  
+          </button>
+  
+          <button
+            *ngIf="puedeCerrar"
+            type="button"
+            class="action-button action-warning"
+            (click)="abrirPanel('CERRAR')">
+  
+            <span>07</span>
+            <strong>Cerrar Caso</strong>
+            <small>CU-08</small>
+  
+          </button>
+  
+          <button
+            *ngIf="opcionesEstadoEspecial.includes('RECHAZADO')"
+            type="button"
+            class="action-button action-danger"
+            (click)="abrirAccionEspecial('RECHAZADO')">
+  
+            <span>08</span>
+            <strong>Rechazar Caso</strong>
+            <small>Motivo obligatorio</small>
+  
+          </button>
+  
+          <button
+            *ngIf="opcionesEstadoEspecial.includes('CANCELADO')"
+            type="button"
+            class="action-button action-danger"
+            (click)="abrirAccionEspecial('CANCELADO')">
+  
+            <span>09</span>
+            <strong>Cancelar Caso</strong>
+            <small>Motivo obligatorio</small>
+  
+          </button>
+  
+          <button
+            *ngIf="puedeReabrir"
+            type="button"
+            class="action-button"
+            (click)="abrirPanel('REABRIR')">
+  
+            <span>10</span>
+            <strong>Reabrir Caso</strong>
+            <small>RN13</small>
+  
+          </button>
+  
+        </div>
+  
+      </section>
+  
+  
+      <!-- =====================================================
+           PANEL DE ACCIÓN SELECCIONADO
+           ===================================================== -->
+      <section
+        *ngIf="panelActivo"
+        id="panel-accion-activo"
+        class="card action-form-card">
+  
+  
+        <!-- ===========================================
+             PASOS 16-24 / FA11-FA14 - EDITAR
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'EDITAR'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">EDICIÓN</span>
+              <h2>Editar Información del Caso</h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              (click)="cancelarEdicion()">
+              ×
+            </button>
+  
+          </div>
+  
+          <div class="form-grid two">
+  
+            <div class="field">
+              <label>Tipo de caso *</label>
+  
+              <select
+                [(ngModel)]="edit.type"
+                [disabled]="operating">
+  
+                <option
+                  *ngFor="let x of types"
+                  [value]="x">
+                  {{ label(x) }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div class="field">
+              <label>Sucursal *</label>
+  
+              <select
+                [(ngModel)]="edit.branchId"
+                [disabled]="operating">
+  
+                <option [ngValue]="null">
+                  Seleccione...
+                </option>
+  
+                <option
+                  *ngFor="let b of branches"
+                  [ngValue]="b.id">
+                  {{ b.name }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div class="field">
+              <label>Categoría *</label>
+  
+              <select
+                [(ngModel)]="edit.category"
+                [disabled]="operating">
+  
+                <option
+                  *ngFor="let x of categories"
+                  [value]="x">
+                  {{ label(x) }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div class="field">
+              <label>Prioridad *</label>
+  
+              <select
+                [(ngModel)]="edit.priority"
+                [disabled]="operating">
+  
+                <option
+                  *ngFor="let x of priorities"
+                  [value]="x">
+                  {{ label(x) }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div class="field">
+              <label>Número de pedido o factura</label>
+  
+              <input
+                [(ngModel)]="edit.orderNumber"
+                maxlength="30"
+                [disabled]="operating">
+            </div>
+  
+            <div class="field field-full">
+              <label>Observación administrativa</label>
+  
+              <textarea
+                [(ngModel)]="edit.administrativeObservation"
+                maxlength="1000"
+                rows="5"
+                [disabled]="operating">
+              </textarea>
+            </div>
+  
+          </div>
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="operating"
+              (click)="cancelarEdicion()">
+              Cancelar
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="operating"
+              (click)="saveEdit()">
+              Guardar Cambios
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             CU-05 - ASIGNAR / REASIGNAR RESPONSABLE
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'ASIGNAR'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">CU-05 · RESPONSABLE</span>
+  
+              <h2>
+                {{
+                  c.responsibleId
+                    ? 'Reasignar Responsable'
+                    : 'Asignar Responsable'
+                }}
+              </h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              [disabled]="operating"
+              (click)="cancelarAsignacion()">
+              ×
+            </button>
+  
+          </div>
+  
+  
+          <!-- =================================================
+               PASO 10 - INFORMACIÓN DEL CASO EN MODO LECTURA
+               ================================================= -->
+          <div class="assignment-case-grid">
+  
+            <div class="assignment-case-item">
+              <span>Código de seguimiento</span>
+              <strong class="mono">{{ c.code }}</strong>
+            </div>
+  
+            <div class="assignment-case-item">
+              <span>Tipo de caso</span>
+              <strong>{{ label(c.type) }}</strong>
+            </div>
+  
+            <div class="assignment-case-item">
+              <span>Sucursal</span>
+              <strong>{{ c.branch || '—' }}</strong>
+            </div>
+  
+            <div class="assignment-case-item">
+              <span>Categoría</span>
+              <strong>{{ label(c.category) }}</strong>
+            </div>
+  
+            <div class="assignment-case-item">
+              <span>Prioridad</span>
+              <strong>{{ label(c.priority) }}</strong>
+            </div>
+  
+            <div class="assignment-case-item">
+              <span>Estado actual</span>
+              <strong>{{ label(c.status) }}</strong>
+            </div>
+  
+            <div class="assignment-case-item">
+              <span>Responsable actual</span>
+              <strong>{{ c.responsible || 'Sin asignar' }}</strong>
+            </div>
+  
+          </div>
+  
+  
+          <!-- =================================================
+               PASOS 11 Y 12 - FILTROS
+               ================================================= -->
+          <div class="assignment-subsection">
+  
+            <div class="assignment-subhead">
+              <div>
+                <span class="section-kicker">LOCALIZAR RESPONSABLE</span>
+                <h3>Filtros de búsqueda</h3>
+              </div>
+            </div>
+  
+            <div class="agent-filter-grid">
+  
+              <div class="field">
+                <label>Nombre o nombre de usuario</label>
+  
+                <input
+                  [(ngModel)]="agentFilters.q"
+                  name="agentQ"
+                  autocomplete="off"
+                  placeholder="Nombre o usuario"
+                  [disabled]="agentsLoading || operating"
+                  (keyup.enter)="buscarAgentes()">
+              </div>
+  
+              <div class="field">
+                <label>Sucursal</label>
+  
+                <select
+                  [(ngModel)]="agentFilters.branchId"
+                  name="agentBranch"
+                  [disabled]="agentsLoading || operating">
+  
+                  <option [ngValue]="''">
+                    Todas
+                  </option>
+  
+                  <option
+                    *ngFor="let b of branches"
+                    [ngValue]="b.id">
+                    {{ b.name }}
+                  </option>
+  
+                </select>
+              </div>
+  
+              <div class="field">
+                <label>Categoría o especialidad</label>
+  
+                <select
+                  [(ngModel)]="agentFilters.category"
+                  name="agentCategory"
+                  [disabled]="agentsLoading || operating">
+  
+                  <option value="">
+                    Todas
+                  </option>
+  
+                  <option
+                    *ngFor="let x of categories"
+                    [value]="x">
+                    {{ label(x) }}
+                  </option>
+  
+                </select>
+              </div>
+  
+              <div class="field">
+                <label>Disponibilidad</label>
+  
+                <select
+                  [(ngModel)]="agentFilters.available"
+                  name="agentAvailable"
+                  [disabled]="agentsLoading || operating">
+  
+                  <option [ngValue]="''">
+                    Todas
+                  </option>
+  
+                  <option [ngValue]="true">
+                    Disponible
+                  </option>
+  
+                  <option [ngValue]="false">
+                    No disponible
+                  </option>
+  
+                </select>
+              </div>
+  
+              <div class="field">
+                <label>Cantidad de casos abiertos</label>
+  
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  [(ngModel)]="agentFilters.maxOpenCases"
+                  name="agentMaxOpenCases"
+                  placeholder="Máximo"
+                  [disabled]="agentsLoading || operating">
+              </div>
+  
+            </div>
+  
+            <div class="agent-filter-actions">
+  
+              <button
+                type="button"
+                class="btn btn-secondary"
+                [disabled]="agentsLoading || operating"
+                (click)="limpiarFiltrosAgentes()">
+                Limpiar Filtros
+              </button>
+  
+              <button
+                type="button"
+                class="btn btn-primary"
+                [disabled]="agentsLoading || operating"
+                (click)="buscarAgentes()">
+                Buscar
+              </button>
+  
+            </div>
+  
+          </div>
+  
+  
+          <!-- =================================================
+               PASOS 13, 14 Y 15 - TABLA DE AGENTES
+               ================================================= -->
+          <div class="assignment-subsection">
+  
+            <div class="assignment-subhead">
+  
+              <div>
+                <span class="section-kicker">AGENTES DE ATENCIÓN</span>
+                <h3>Responsables Disponibles</h3>
+              </div>
+  
+              <span class="count-pill">
+                {{ agents.length }}
+              </span>
+  
+            </div>
+  
+  
+            <div
+              *ngIf="agentsLoading"
+              class="agents-loading">
+              <span class="spinner"></span>
+              Buscando responsables...
+            </div>
+  
+  
+            <div
+              *ngIf="!agentsLoading"
+              class="agent-table-wrap">
+  
+              <table class="agent-table">
+  
+                <thead>
+                  <tr>
+                    <th>Nombre completo</th>
+                    <th>Nombre de usuario</th>
+                    <th>Sucursal o ámbito asignado</th>
+                    <th>Categorías autorizadas</th>
+                    <th>Casos abiertos</th>
+                    <th>Casos vencidos</th>
+                    <th>Disponibilidad</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+  
+                <tbody>
+  
+                  <tr
+                    *ngFor="let a of agents"
+                    [class.agent-selected]="assign.responsibleId === a.id">
+  
+                    <td>
+                      <strong>{{ a.fullName }}</strong>
+                    </td>
+  
+                    <td class="mono">
+                      {{ a.username }}
+                    </td>
+  
+                    <td>
+                      {{ a.branch || 'Sin sucursal' }}
+                    </td>
+  
+                    <td>
+  
+                      <div
+                        *ngIf="a.categories.length; else sinCategorias"
+                        class="category-list">
+  
+                        <span
+                          *ngFor="let categoria of a.categories"
+                          class="mini-category">
+                          {{ label(categoria) }}
+                        </span>
+  
+                      </div>
+  
+                      <ng-template #sinCategorias>
+                        <span class="muted-text">
+                          Sin categorías registradas
+                        </span>
+                      </ng-template>
+  
+                    </td>
+  
+                    <td class="number-cell">
+                      {{ a.openCases }}
+                    </td>
+  
+                    <td class="number-cell">
+                      <span
+                        [class.overdue-number]="a.overdueCases > 0">
+                        {{ a.overdueCases }}
+                      </span>
+                    </td>
+  
+                    <td>
+  
+                      <span
+                        class="availability-badge"
+                        [class.available]="a.available"
+                        [class.unavailable]="!a.available">
+  
+                        {{
+                          a.available
+                            ? 'Disponible'
+                            : 'No disponible'
+                        }}
+  
+                      </span>
+  
+                    </td>
+  
+                    <td>
+  
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-sm"
+                        [class.selected-button]="assign.responsibleId === a.id"
+                        [disabled]="
+                          operating ||
+                          !a.available ||
+                          c.responsibleId === a.id
+                        "
+                        (click)="seleccionarAgente(a)">
+  
+                        {{
+                          assign.responsibleId === a.id
+                            ? 'Seleccionado'
+                            : 'Seleccionar'
+                        }}
+  
+                      </button>
+  
+                    </td>
+  
+                  </tr>
+  
+  
+                  <!-- FA07 / AN02 No. 5 -->
+                  <tr *ngIf="!agents.length">
+  
+                    <td
+                      colspan="8"
+                      class="empty-agent-cell">
+  
+                      No existen responsables disponibles para los criterios seleccionados.
+  
+                    </td>
+  
+                  </tr>
+  
+                </tbody>
+  
+              </table>
+  
+            </div>
+  
+          </div>
+  
+  
+          <!-- =================================================
+               PASOS 16, 17 Y 18 - AGENTE SELECCIONADO
+               ================================================= -->
+          <div
+            *ngIf="agenteSeleccionado as agente"
+            class="selected-agent-panel">
+  
+            <div class="selected-agent-head">
+  
+              <div>
+                <span class="section-kicker">RESPONSABLE SELECCIONADO</span>
+                <h3>{{ agente.fullName }}</h3>
+              </div>
+  
+              <span
+                class="availability-badge available">
+                Disponible
+              </span>
+  
+            </div>
+  
+            <div class="selected-agent-data">
+  
+              <span>
+                Usuario:
+                <strong class="mono">{{ agente.username }}</strong>
+              </span>
+  
+              <span>
+                Sucursal:
+                <strong>{{ agente.branch }}</strong>
+              </span>
+  
+              <span>
+                Casos abiertos:
+                <strong>{{ agente.openCases }}</strong>
+              </span>
+  
+              <span>
+                Casos vencidos:
+                <strong>{{ agente.overdueCases }}</strong>
+              </span>
+  
+            </div>
+  
+  
+            <div class="field assignment-observation">
+  
+              <label>
+                {{
+                  c.responsibleId
+                    ? 'Motivo de reasignación *'
+                    : 'Observación de Asignación'
+                }}
+              </label>
+  
+              <textarea
+                [(ngModel)]="assign.reason"
+                name="assignmentReason"
+                maxlength="1000"
+                rows="5"
+                [disabled]="operating"
+                [placeholder]="
+                  c.responsibleId
+                    ? 'Indique el motivo de la reasignación'
+                    : 'Observación opcional para la asignación inicial'
+                ">
+              </textarea>
+  
+            </div>
+  
+  
+            <div class="form-actions">
+  
+              <button
+                type="button"
+                class="btn btn-secondary"
+                [disabled]="operating"
+                (click)="cancelarAsignacion()">
+                Cancelar
+              </button>
+  
+              <button
+                type="button"
+                class="btn btn-primary"
+                [disabled]="operating"
+                (click)="doAssign()">
+  
+                {{
+                  c.responsibleId
+                    ? 'Reasignar'
+                    : 'Asignar'
+                }}
+  
+              </button>
+  
+            </div>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             FA16 / FA17 - CAMBIAR ESTADO
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'ESTADO'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">ESTADO</span>
+              <h2>Cambiar Estado</h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              (click)="cerrarPanel()">
+              ×
+            </button>
+  
+          </div>
+  
+          <div class="readonly-bar">
+            <span>
+              Estado actual:
+              <strong>{{ label(c.status) }}</strong>
+            </span>
+          </div>
+  
+          <div class="form-grid two">
+  
+            <div class="field">
+              <label>Nuevo estado *</label>
+  
+              <select
+                [(ngModel)]="normalStatus"
+                [disabled]="operating">
+  
+                <option value="">
+                  Seleccione...
+                </option>
+  
+                <option
+                  *ngFor="let x of estadosCambioNormal"
+                  [value]="x">
+                  {{ label(x) }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div class="field">
+              <label>Motivo</label>
+  
+              <textarea
+                [(ngModel)]="normalStatusReason"
+                maxlength="1000"
+                rows="4"
+                [disabled]="operating">
+              </textarea>
+            </div>
+  
+          </div>
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cerrarPanel()">
+              Cancelar
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="operating"
+              (click)="changeNormalStatus()">
+              Actualizar Estado
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             FA18 - CU-06 REGISTRAR SEGUIMIENTO
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'SEGUIMIENTO'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">SEGUIMIENTO</span>
+              <h2>Registrar Seguimiento</h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              (click)="cerrarPanel()">
+              ×
+            </button>
+  
+          </div>
+  
+          <div class="readonly-bar">
+  
+            <span>
+              Código:
+              <strong class="mono">{{ c.code }}</strong>
+            </span>
+  
+            <span>
+              Estado actual:
+              <strong>{{ label(c.status) }}</strong>
+            </span>
+  
+          </div>
+  
+          <div class="form-grid two">
+  
+            <div class="field">
+              <label>Tipo de seguimiento *</label>
+  
+              <select
+                [(ngModel)]="follow.type"
+                (ngModelChange)="onFollowTypeChange()"
+                [disabled]="operating">
+  
+                <option
+                  *ngFor="let x of followTypes"
+                  [value]="x">
+                  {{ label(x) }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div class="field">
+              <label>Nuevo estado</label>
+  
+              <select
+                [(ngModel)]="follow.newStatus"
+                [disabled]="operating">
+  
+                <option [ngValue]="null">
+                  Mantener estado actual
+                </option>
+  
+                <option
+                  *ngFor="let x of estadosSeguimientoPermitidos"
+                  [value]="x">
+                  {{ label(x) }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div class="field field-full">
+              <label>Descripción *</label>
+  
+              <textarea
+                [(ngModel)]="follow.description"
+                minlength="10"
+                maxlength="3000"
+                rows="6"
+                [disabled]="operating">
+              </textarea>
+  
+              <small>
+                Entre 10 y 3000 caracteres.
+              </small>
+            </div>
+  
+          </div>
+  
+          <label class="check-row">
+  
+            <input
+              type="checkbox"
+              [(ngModel)]="follow.visibleToClient"
+              [disabled]="
+                !visibilidadSeguimientoEditable ||
+                operating
+              ">
+  
+            <span>Visible para cliente</span>
+  
+          </label>
+  
+          <div class="upload-box">
+  
+            <label>Archivos</label>
+  
+            <input
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.pdf"
+              [disabled]="operating"
+              (change)="pickFollowFiles($event)">
+  
+            <small>
+              JPG, JPEG, PNG o PDF.
+              Máximo 5 archivos de 2 MB cada uno.
+            </small>
+  
+          </div>
+  
+          <div
+            *ngIf="followFiles.length"
+            class="file-list">
+  
+            <div
+              *ngFor="
+                let archivo of followFiles;
+                let i = index
+              "
+              class="file-row">
+  
+              <div>
+                <strong>{{ archivo.name }}</strong>
+                <small>{{ bytes(archivo.size) }}</small>
+              </div>
+  
+              <button
+                type="button"
+                class="link-button danger-link"
+                (click)="retirarArchivoSeguimiento(i)">
+                Retirar
+              </button>
+  
+            </div>
+  
+          </div>
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cerrarPanel()">
+              Cancelar
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="operating"
+              (click)="addFollow()">
+              Registrar Seguimiento
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             CU-07 - ADJUNTAR EVIDENCIA
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'EVIDENCIA'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">
+                CU-07 · EVIDENCIA
+              </span>
+  
+              <h2>
+                Adjuntar Evidencia
+              </h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              [disabled]="operating"
+              (click)="cancelarEvidencia()">
+              ×
+            </button>
+  
+          </div>
+  
+  
+          <!-- PASO 8 - CÓDIGO -->
+          <div class="evidence-case-bar">
+  
+            <div>
+              <span>
+                Código del caso
+              </span>
+  
+              <strong class="mono">
+                {{ c.code }}
+              </strong>
+            </div>
+  
+            <div>
+              <span>
+                Estado
+              </span>
+  
+              <strong>
+                {{ label(c.status) }}
+              </strong>
+            </div>
+  
+          </div>
+  
+  
+          <!-- PASOS 9-12 -->
+          <div class="evidence-form-grid">
+  
+            <div class="field">
+  
+              <label>
+                Tipo de asociación *
+              </label>
+  
+              <select
+                [(ngModel)]="evidenceAssociationType"
+                name="evidenceAssociationType"
+                [disabled]="operating"
+                (ngModelChange)="onEvidenceAssociationChange()">
+  
+                <option value="CASO">
+                  Evidencia del caso
+                </option>
+  
+                <option value="SEGUIMIENTO">
+                  Evidencia de seguimiento
+                </option>
+  
+              </select>
+  
+            </div>
+  
+  
+            <div
+              *ngIf="
+                evidenceAssociationType ===
+                'SEGUIMIENTO'
+              "
+              class="field">
+  
+              <label>
+                Seguimiento relacionado *
+              </label>
+  
+              <select
+                [(ngModel)]="evidenceFollowUpId"
+                name="evidenceFollowUpId"
+                [disabled]="operating"
+                (ngModelChange)="onEvidenceFollowUpChange()">
+  
+                <option [ngValue]="null">
+                  Seleccione...
+                </option>
+  
+                <option
+                  *ngFor="let f of c.followUps"
+                  [ngValue]="f.id">
+  
+                  {{ f.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                  · {{ label(f.type) }}
+                  · {{ f.author || 'Sistema' }}
+  
+                </option>
+  
+              </select>
+  
+  
+              <small
+                *ngIf="!c.followUps.length"
+                class="field-warning">
+  
+                No existen seguimientos disponibles para asociar la evidencia
+  
+              </small>
+  
+            </div>
+  
+  
+            <div class="field evidence-description-field">
+  
+              <label>
+                Descripción del archivo *
+              </label>
+  
+              <textarea
+                [(ngModel)]="evidenceDescription"
+                name="evidenceDescription"
+                maxlength="500"
+                rows="5"
+                [disabled]="operating"
+                placeholder="Describa brevemente el contenido de la evidencia">
+              </textarea>
+  
+              <small>
+                Máximo 500 caracteres.
+              </small>
+  
+            </div>
+  
+  
+            <div class="evidence-visibility-box">
+  
+              <span class="evidence-box-label">
+                Visibilidad
+              </span>
+  
+              <label class="check-row evidence-check">
+  
+                <input
+                  type="checkbox"
+                  [(ngModel)]="evidenceVisible"
+                  name="evidenceVisible"
+                  [disabled]="
+                    operating ||
+                    evidenceAvailabilityLoading ||
+                    (
+                      evidenceAvailability != null &&
+                      !evidenceAvailability.visibilityEditable
+                    )
+                  ">
+  
+                <span>
+                  Visible para cliente
+                </span>
+  
+              </label>
+  
+  
+              <small
+                *ngIf="
+                  evidenceAssociationType ===
+                  'SEGUIMIENTO' &&
+                  seguimientoEvidenciaSeleccionado
+                ">
+  
+                La visibilidad se hereda del seguimiento seleccionado.
+  
+              </small>
+  
+            </div>
+  
+          </div>
+  
+  
+          <!-- DISPONIBILIDAD -->
+          <div class="evidence-capacity-card">
+  
+            <div>
+  
+              <span>
+                Cantidad disponible
+              </span>
+  
+              <strong
+                *ngIf="
+                  evidenceAvailability &&
+                  !evidenceAvailabilityLoading
+                ">
+  
+                {{
+                  evidenceAvailability.available
+                }}
+                de
+                {{
+                  evidenceAvailability.limit
+                }}
+  
+              </strong>
+  
+              <strong
+                *ngIf="evidenceAvailabilityLoading">
+                Consultando...
+              </strong>
+  
+              <strong
+                *ngIf="
+                  !evidenceAvailability &&
+                  !evidenceAvailabilityLoading
+                ">
+                —
+              </strong>
+  
+            </div>
+  
+  
+            <div
+              *ngIf="evidenceAvailability"
+              class="capacity-meter">
+  
+              <span
+                [style.width.%]="
+                  (
+                    evidenceAvailability.used /
+                    evidenceAvailability.limit
+                  ) * 100
+                ">
+              </span>
+  
+            </div>
+  
+  
+            <p
+              *ngIf="
+                evidenceAvailability &&
+                evidenceAvailability.available === 0
+              "
+              class="capacity-limit-message">
+  
+              Se alcanzó la cantidad máxima de archivos permitidos.
+  
+            </p>
+  
+          </div>
+  
+  
+          <!-- ARCHIVO -->
+          <div class="evidence-upload-area">
+  
+            <div class="evidence-upload-head">
+  
+              <div>
+                <span class="section-kicker">
+                  ARCHIVO
+                </span>
+  
+                <h3>
+                  Seleccionar Archivo
+                </h3>
+              </div>
+  
+              <div class="evidence-rules">
+  
+                <span>
+                  JPG, JPEG, PNG, PDF
+                </span>
+  
+                <span>
+                  Máximo 2 MB
+                </span>
+  
+              </div>
+  
+            </div>
+  
+  
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.pdf"
+              [disabled]="
+                !puedeSeleccionarArchivoEvidencia
+              "
+              (change)="pickEvidence($event)">
+  
+  
+            <div
+              *ngIf="evidenceFile"
+              class="selected-evidence-card">
+  
+              <div class="selected-evidence-main">
+  
+                <div class="selected-file-icon">
+                  FILE
                 </div>
-            </div>
-        </div>
-        <div *ngIf="auth.has('CASE_FOLLOWUP')" class="card">
-            <h3>Agregar seguimiento</h3>
-            <div class="grid grid-2">
-                <div class="field"><label>Tipo *</label><select [(ngModel)]="follow.type">
-                        <option *ngFor="let x of followTypes" [value]="x">{{label(x)}}</option>
-                    </select></div>
-                <div class="field"><label>Nuevo estado</label><select [(ngModel)]="follow.newStatus">
-                        <option [ngValue]="null">Mantener/automático</option>
-                        <option *ngFor="let s of statuses" [value]="s">{{label(s)}}</option>
-                    </select></div>
-            </div>
-            <div class="field" style="margin-top:12px"><label>Descripción *</label><textarea
-                    [(ngModel)]="follow.description"></textarea></div>
-            <div class="checkbox" style="margin-top:10px"><input type="checkbox" [(ngModel)]="follow.visibleToClient"
-                    id="vis"><label for="vis">Visible al cliente</label></div>
-            <div class="field" style="margin-top:12px"><label>Evidencias del seguimiento</label><input type="file"
-                    multiple accept=".jpg,.jpeg,.png,.pdf" (change)="pickFollowFiles($event)"></div>
-            <div class="form-actions"><button class="btn btn-primary" (click)="addFollow()">Guardar seguimiento</button>
-            </div>
-        </div>
-        <div class="card">
-            <div class="split">
-                <h3>Evidencias</h3><span>{{c.evidences.length}} archivo(s)</span>
-            </div>
-            <div class="table-wrap">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Archivo</th>
-                            <th>Descripción</th>
-                            <th>Visibilidad</th>
-                            <th>Estado</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr *ngFor="let e of c.evidences">
-                            <td>{{e.originalName}}<div class="muted">{{bytes(e.sizeBytes)}}</div>
-                            </td>
-                            <td>{{e.description||'—'}}</td>
-                            <td>{{e.visibleToClient?'Cliente':'Interna'}}</td>
-                            <td>{{e.status}}</td>
-                            <td><button *ngIf="auth.has('EVIDENCE_DOWNLOAD')&&e.status==='ACTIVA'"
-                                    class="btn btn-outline btn-sm"
-                                    (click)="download(e.id,e.originalName)">Descargar</button></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div *ngIf="auth.has('EVIDENCE_UPLOAD')" class="card">
-            <h3>Adjuntar evidencia independiente</h3>
-            <div class="grid grid-2">
-                <div class="field"><label>Descripción *</label><input [(ngModel)]="evidenceDescription"></div>
-                <div class="field"><label>Archivo *</label><input type="file" accept=".jpg,.jpeg,.png,.pdf"
-                        (change)="pickEvidence($event)"></div>
-            </div>
-            <div class="checkbox" style="margin-top:10px"><input id="evvis" type="checkbox"
-                    [(ngModel)]="evidenceVisible"><label for="evvis">Visible al cliente</label></div>
-            <div class="form-actions"><button class="btn btn-primary" (click)="uploadEvidence()">Adjuntar</button></div>
-        </div>
-        <div *ngIf="auth.has('CASE_RESOLVE')&&['ASIGNADO','EN_PROCESO','EN_ESPERA_CLIENTE','REABIERTO'].includes(c.status)"
-            class="card">
-            <h3>Resolver caso</h3>
-            <div class="field"><label>Solución aplicada *</label><textarea [(ngModel)]="resolution"></textarea></div>
-            <div class="form-actions"><button class="btn btn-success" (click)="resolve()">Marcar como resuelto</button>
-            </div>
-        </div>
-        <div *ngIf="auth.has('CASE_CLOSE')&&c.status==='RESUELTO'" class="card">
-            <h3>Cerrar caso</h3>
-            <div class="grid grid-2">
-                <div class="field"><label>Motivo *</label><select [(ngModel)]="close.reason">
-                        <option *ngFor="let x of closeReasons" [value]="x">{{label(x)}}</option>
-                    </select></div>
-                <div class="field"><label>Resumen *</label><input [(ngModel)]="close.summary"></div>
-                <div class="field"><label>Detalle del motivo</label><input [(ngModel)]="close.detailReason"></div>
-                <div class="field" *ngIf="close.reason==='DUPLICADO'"><label>Código caso principal *</label><input
-                        [(ngModel)]="close.duplicateCaseCode" class="mono"></div>
-                <div class="field"><label>Observación interna</label><input [(ngModel)]="close.internalObservation">
+  
+                <div>
+                  <span>
+                    Nombre original
+                  </span>
+  
+                  <strong>
+                    {{ evidenceFile.name }}
+                  </strong>
                 </div>
+  
+              </div>
+  
+  
+              <div class="selected-evidence-meta">
+  
+                <div>
+                  <span>
+                    Extensión
+                  </span>
+  
+                  <strong>
+                    {{ extensionEvidenciaSeleccionada }}
+                  </strong>
+                </div>
+  
+                <div>
+                  <span>
+                    Tamaño
+                  </span>
+  
+                  <strong>
+                    {{ bytes(evidenceFile.size) }}
+                  </strong>
+                </div>
+  
+              </div>
+  
+  
+              <button
+                type="button"
+                class="btn btn-outline btn-sm"
+                [disabled]="operating"
+                (click)="retirarEvidenciaSeleccionada()">
+  
+                Retirar Archivo
+  
+              </button>
+  
             </div>
-            <div class="checkbox" style="margin-top:10px"><input id="notify" type="checkbox"
-                    [(ngModel)]="close.notifyClient"><label for="notify">Notificar al cliente</label></div>
-            <div class="checkbox" style="margin-top:10px"><input id="survey" type="checkbox"
-                    [(ngModel)]="close.sendSurvey"><label for="survey">Enviar encuesta de satisfacción</label></div>
-            <div *ngIf="c.priority==='CRITICA'||c.confidential" class="checkbox" style="margin-top:10px"><input
-                    id="review" type="checkbox" [(ngModel)]="close.criticalReviewConfirmed"><label for="review">Confirmo
-                    revisión obligatoria del caso crítico/confidencial</label></div>
-            <div class="form-actions"><button class="btn btn-success" (click)="doClose()">Cerrar caso</button></div>
-        </div>
-        <div *ngIf="auth.has('CASE_REOPEN')&&['CERRADO','RECHAZADO','CANCELADO','RESUELTO'].includes(c.status)"
-            class="card">
-            <h3>Reabrir caso</h3>
-            <div class="field"><label>Motivo *</label><textarea [(ngModel)]="reopen.reason"></textarea></div>
-            <div class="checkbox" style="margin-top:10px"><input id="special" type="checkbox"
-                    [(ngModel)]="reopen.specialJustification"><label for="special">Justificación especial (cuando excede
-                    el plazo ordinario de 15 días)</label></div>
-            <div class="form-actions"><button class="btn btn-outline" (click)="doReopen()">Reabrir</button></div>
-        </div>
-        <div *ngIf="auth.has('CASE_UPDATE')&&['PENDIENTE_ASIGNACION','ASIGNADO','EN_PROCESO','EN_ESPERA_CLIENTE'].includes(c.status)"
-            class="card">
-            <h3>Rechazar o cancelar</h3>
-            <div class="grid grid-2">
-                <div class="field"><label>Estado</label><select [(ngModel)]="specialStatus">
-                        <option value="RECHAZADO">Rechazado</option>
-                        <option value="CANCELADO">Cancelado</option>
-                    </select></div>
-                <div class="field"><label>Motivo *</label><input [(ngModel)]="specialReason"></div>
+  
+  
+            <div
+              *ngIf="
+                !evidenceFile &&
+                evidenceAssociationType === 'SEGUIMIENTO' &&
+                evidenceFollowUpId == null
+              "
+              class="evidence-help">
+  
+              Seleccione primero el seguimiento al que se asociará la evidencia.
+  
             </div>
-            <div class="form-actions"><button class="btn btn-danger" (click)="changeStatus()">Aplicar</button></div>
-        </div>
+  
+          </div>
+  
+  
+          <!-- BOTONES -->
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="operating"
+              (click)="cancelarEvidencia()">
+  
+              Cancelar
+  
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="
+                operating ||
+                evidenceAvailabilityLoading ||
+                !evidenceAvailability ||
+                evidenceAvailability.available === 0
+              "
+              (click)="uploadEvidence()">
+  
+              Cargar Evidencia
+  
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             FA20 - REGISTRAR RESOLUCIÓN
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'RESOLUCION'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">RESOLUCIÓN</span>
+              <h2>Registrar Resolución</h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              (click)="cerrarPanel()">
+              ×
+            </button>
+  
+          </div>
+  
+          <div class="field">
+            <label>Resolución *</label>
+  
+            <textarea
+              [(ngModel)]="resolution"
+              minlength="10"
+              maxlength="3000"
+              rows="7"
+              [disabled]="operating">
+            </textarea>
+  
+            <small>
+              Entre 10 y 3000 caracteres.
+            </small>
+          </div>
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cerrarPanel()">
+              Cancelar
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-success"
+              [disabled]="operating"
+              (click)="resolve()">
+              Registrar Resolución
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             FA20 - CERRAR CASO
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'CERRAR'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">CIERRE</span>
+              <h2>Cerrar Caso</h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              (click)="cancelarCierre()">
+              ×
+            </button>
+  
+          </div>
+  
+          <div class="readonly-bar">
+  
+            <span>
+              Código:
+              <strong class="mono">{{ c.code }}</strong>
+            </span>
+  
+            <span>
+              Estado:
+              <strong>{{ label(c.status) }}</strong>
+            </span>
+  
+            <span>
+              Responsable:
+              <strong>{{ c.responsible || 'Sin asignar' }}</strong>
+            </span>
+  
+          </div>
+  
+          <div class="resolution-preview">
+            <span>Resolución registrada</span>
+            <p>{{ c.resolution || 'Sin resolución registrada' }}</p>
+          </div>
+  
+          <div class="form-grid two">
+  
+            <div class="field">
+              <label>Motivo de cierre *</label>
+  
+              <select
+                [(ngModel)]="close.reason"
+                [disabled]="operating">
+  
+                <option
+                  *ngFor="let x of closeReasons"
+                  [value]="x">
+                  {{ label(x) }}
+                </option>
+  
+              </select>
+            </div>
+  
+            <div
+              *ngIf="close.reason === 'DUPLICADO'"
+              class="field">
+  
+              <label>Código del caso principal *</label>
+  
+              <input
+                [(ngModel)]="close.duplicateCaseCode"
+                class="mono"
+                maxlength="30"
+                [disabled]="operating">
+            </div>
+  
+            <div
+              *ngIf="close.reason === 'OTRO'"
+              class="field">
+  
+              <label>Detalle del motivo *</label>
+  
+              <textarea
+                [(ngModel)]="close.detailReason"
+                minlength="10"
+                maxlength="1000"
+                rows="4"
+                [disabled]="operating">
+              </textarea>
+            </div>
+  
+            <div class="field field-full">
+              <label>Resumen de cierre *</label>
+  
+              <textarea
+                [(ngModel)]="close.summary"
+                minlength="10"
+                maxlength="3000"
+                rows="6"
+                [disabled]="operating">
+              </textarea>
+            </div>
+  
+            <div class="field field-full">
+              <label>Observaciones internas</label>
+  
+              <textarea
+                [(ngModel)]="close.internalObservation"
+                maxlength="1000"
+                rows="4"
+                [disabled]="operating">
+              </textarea>
+            </div>
+  
+          </div>
+  
+          <div class="checks-group">
+  
+            <label class="check-row">
+              <input
+                type="checkbox"
+                [(ngModel)]="close.notifyClient"
+                [disabled]="
+                  operating ||
+                  !puedeNotificarCliente
+                ">
+              <span>Notificar al cliente</span>
+            </label>
+  
+            <label class="check-row">
+              <input
+                type="checkbox"
+                [(ngModel)]="close.sendSurvey"
+                [disabled]="
+                  operating ||
+                  !puedeNotificarCliente
+                ">
+              <span>Enviar encuesta de satisfacción</span>
+            </label>
+  
+            <label
+              *ngIf="
+                c.priority === 'CRITICA' ||
+                c.confidential
+              "
+              class="check-row critical-check">
+  
+              <input
+                type="checkbox"
+                [(ngModel)]="close.criticalReviewConfirmed"
+                [disabled]="operating">
+  
+              <span>
+                Confirmo la revisión obligatoria del caso
+              </span>
+  
+            </label>
+  
+          </div>
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="operating"
+              (click)="cancelarCierre()">
+              Cancelar
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="operating"
+              (click)="doClose()">
+              Confirmar Cierre
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             FA21 / FA22 - RECHAZAR O CANCELAR
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'ESPECIAL'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">ESTADO FINAL</span>
+              <h2>
+                {{
+                  specialStatus === 'RECHAZADO'
+                    ? 'Rechazar Caso'
+                    : 'Cancelar Caso'
+                }}
+              </h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              (click)="cerrarPanel()">
+              ×
+            </button>
+  
+          </div>
+  
+          <div class="readonly-bar">
+            <span>
+              Estado actual:
+              <strong>{{ label(c.status) }}</strong>
+            </span>
+          </div>
+  
+          <div class="field">
+            <label>Motivo *</label>
+  
+            <textarea
+              [(ngModel)]="specialReason"
+              maxlength="1000"
+              rows="5"
+              [disabled]="operating">
+            </textarea>
+          </div>
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cerrarPanel()">
+              Cancelar
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="operating"
+              (click)="changeStatus()">
+              Confirmar
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+  
+        <!-- ===========================================
+             FA24 - REABRIR CASO
+             =========================================== -->
+        <ng-container *ngIf="panelActivo === 'REABRIR'">
+  
+          <div class="section-head">
+  
+            <div>
+              <span class="section-kicker">REAPERTURA</span>
+              <h2>Reabrir Caso</h2>
+            </div>
+  
+            <button
+              type="button"
+              class="close-panel"
+              (click)="cerrarPanel()">
+              ×
+            </button>
+  
+          </div>
+  
+          <div
+            *ngIf="reaperturaFueraDePlazo"
+            class="notice notice-warning panel-notice">
+  
+            El plazo ordinario de 15 días ha vencido.
+            Debe registrar una justificación especial.
+  
+          </div>
+  
+          <div class="field">
+            <label>Motivo obligatorio *</label>
+  
+            <textarea
+              [(ngModel)]="reopen.reason"
+              maxlength="1000"
+              rows="5"
+              [disabled]="operating">
+            </textarea>
+          </div>
+  
+          <label
+            *ngIf="reaperturaFueraDePlazo"
+            class="check-row">
+  
+            <input
+              type="checkbox"
+              [(ngModel)]="reopen.specialJustification"
+              [disabled]="operating">
+  
+            <span>Justificación especial</span>
+  
+          </label>
+  
+          <div class="form-actions">
+  
+            <button
+              type="button"
+              class="btn btn-secondary"
+              (click)="cerrarPanel()">
+              Cancelar
+            </button>
+  
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="operating"
+              (click)="doReopen()">
+              Reabrir Caso
+            </button>
+  
+          </div>
+  
+        </ng-container>
+  
+      </section>
+  
+  
+      <!-- =====================================================
+           PASO 27 - REGRESAR
+           ===================================================== -->
+      <div class="bottom-actions">
+  
+        <a
+          routerLink="/app/casos"
+          class="btn btn-secondary">
+          Regresar
+        </a>
+  
+      </div>
+  
     </ng-container>
-</div>
+  
+  </div>

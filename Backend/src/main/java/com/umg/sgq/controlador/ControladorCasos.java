@@ -18,6 +18,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/cases")
 public class ControladorCasos {
+
     private final ServicioCasos service;
 
     public ControladorCasos(ServicioCasos service) {
@@ -26,8 +27,33 @@ public class ControladorCasos {
 
     @GetMapping
     @PreAuthorize("@authz.has('CASE_VIEW')")
-    public PaginaCasos list(@RequestParam(required = false) List<EstadoCaso> status, @RequestParam(required = false) String q, @RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to, @RequestParam(required = false) TipoCaso type, @RequestParam(required = false) Prioridad priority, @RequestParam(required = false) Long branchId, @RequestParam(required = false) CategoriaCaso category, @RequestParam(required = false) Long responsibleId, @RequestParam(required = false) IndicadorSla sla, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        return service.search(status, q, from, to, type, priority, branchId, category, responsibleId, sla, page, size);
+    public PaginaCasos list(
+            @RequestParam(required = false) List<EstadoCaso> status,
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) TipoCaso type,
+            @RequestParam(required = false) Prioridad priority,
+            @RequestParam(required = false) Long branchId,
+            @RequestParam(required = false) CategoriaCaso category,
+            @RequestParam(required = false) Long responsibleId,
+            @RequestParam(required = false) IndicadorSla sla,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return service.search(status, code, from, to, type, priority, branchId, category, responsibleId, sla, page, size);
+    }
+
+    @GetMapping("/filters/responsibles")
+    @PreAuthorize("@authz.has('CASE_VIEW')")
+    public List<Map<String, Object>> responsablesFiltro() {
+        return service.responsablesDisponiblesFiltro();
+    }
+
+    @GetMapping("/filters/branches")
+    @PreAuthorize("@authz.has('CASE_VIEW')")
+    public List<Map<String, Object>> sucursalesFiltro() {
+        return service.sucursalesDisponiblesFiltro();
     }
 
     @GetMapping("/{id}")
@@ -38,8 +64,15 @@ public class ControladorCasos {
 
     @GetMapping("/{id}/agents")
     @PreAuthorize("@authz.has('CASE_ASSIGN')")
-    public List<Map<String, Object>> agents(@PathVariable Long id) {
-        return service.availableAgents(id);
+    public List<VistaAgenteAsignacion> agents(
+            @PathVariable Long id,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long branchId,
+            @RequestParam(required = false) CategoriaCaso category,
+            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) Integer maxOpenCases
+    ) {
+        return service.availableAgents(id, q, branchId, category, available, maxOpenCases);
     }
 
     @PutMapping("/{id}")
@@ -56,14 +89,38 @@ public class ControladorCasos {
 
     @PostMapping(value = "/{id}/follow-ups", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@authz.has('CASE_FOLLOWUP')")
-    public VistaCasoInterno follow(@PathVariable Long id, @Valid @RequestPart("data") SolicitudSeguimiento r, @RequestPart(value = "files", required = false) List<MultipartFile> files, HttpServletRequest req) {
+    public VistaCasoInterno follow(
+            @PathVariable Long id,
+            @Valid @RequestPart("data") SolicitudSeguimiento r,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            HttpServletRequest req
+    ) {
         return service.followUp(id, r, files, req);
+    }
+
+    @GetMapping("/{id}/evidences/availability")
+    @PreAuthorize("@authz.has('EVIDENCE_UPLOAD')")
+    public Map<String, Object> evidenceAvailability(
+            @PathVariable Long id,
+            @RequestParam TipoAsociacionEvidencia associationType,
+            @RequestParam(required = false) Long followUpId
+    ) {
+        return service.evidenceAvailability(id, associationType, followUpId);
     }
 
     @PostMapping(value = "/{id}/evidences", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@authz.has('EVIDENCE_UPLOAD')")
-    public VistaEvidencia evidence(@PathVariable Long id, @RequestParam String description, @RequestParam(defaultValue = "false") boolean visibleToClient, @RequestPart("file") MultipartFile file, HttpServletRequest req) {
-        return service.addEvidence(id, description, visibleToClient, file, req);
+    public VistaEvidencia evidence(
+            @PathVariable Long id,
+            @RequestParam TipoAsociacionEvidencia associationType,
+            @RequestParam(required = false) Long followUpId,
+            @RequestParam String description,
+            @RequestParam(defaultValue = "false") boolean visibleToClient,
+            @RequestParam long version,
+            @RequestPart("file") MultipartFile file,
+            HttpServletRequest req
+    ) {
+        return service.addEvidence(id, associationType, followUpId, description, visibleToClient, version, file, req);
     }
 
     @PostMapping("/{id}/resolve")

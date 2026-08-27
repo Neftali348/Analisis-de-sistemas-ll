@@ -414,7 +414,37 @@ public final class DtosCasos {
             @NotNull
             Long responsibleId,
 
-            String reason
+            @Size(max = 1000)
+            String reason,
+
+            long version
+
+    ) {
+    }
+
+    // =========================================================
+// CU-05 - AGENTE DISPONIBLE PARA ASIGNACIÓN
+// =========================================================
+
+    public record VistaAgenteAsignacion(
+
+            Long id,
+
+            String fullName,
+
+            String username,
+
+            Long branchId,
+
+            String branch,
+
+            List<CategoriaCaso> categories,
+
+            long openCases,
+
+            long overdueCases,
+
+            boolean available
 
     ) {
     }
@@ -565,4 +595,6 @@ public final class DtosCasos {
 
     ) {
     }
+
+
 }

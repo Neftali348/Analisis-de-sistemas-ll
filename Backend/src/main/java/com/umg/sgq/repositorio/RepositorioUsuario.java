@@ -37,6 +37,20 @@ public interface RepositorioUsuario extends JpaRepository<Usuario, Long> {
             @Param("branchId") Long branchId
     );
 
+    @Query("""
+        select distinct u
+        from Usuario u
+        left join fetch u.authorizedCategories
+        where u.role.code = :role
+          and u.status = :status
+        order by u.fullName
+        """)
+    List<Usuario> findActiveByRole(
+            @Param("role") CodigoRol role,
+            @Param("status") EstadoRegistro status
+    );
+
+
     @Modifying
     @Transactional
     @Query("""

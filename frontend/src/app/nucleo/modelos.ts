@@ -164,7 +164,7 @@ export interface VistaCaso {
   slaBreached?: boolean;
   followUps: Seguimiento[];
   evidences: Evidencia[];
-  version?: number;
+  version: number;
 }
 
 export interface PaginaCasos {

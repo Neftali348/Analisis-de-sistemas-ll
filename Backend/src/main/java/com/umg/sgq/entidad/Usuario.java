@@ -4,6 +4,10 @@ import com.umg.sgq.enumeracion.EstadoRegistro;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import com.umg.sgq.enumeracion.CategoriaCaso;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import java.time.LocalDateTime;
 
@@ -59,4 +63,21 @@ public class Usuario {
     void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    @Column(nullable = false)
+    private boolean availableForAssignment = true;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_authorized_categories",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "category",
+            nullable = false,
+            length = 30
+    )
+    private Set<CategoriaCaso> authorizedCategories =
+            new HashSet<>();
 }

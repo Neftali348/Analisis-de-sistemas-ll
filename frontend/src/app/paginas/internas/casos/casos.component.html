@@ -1,5 +1,432 @@
-<div class="page"><div class="page-head"><div><h1>Bandeja de casos</h1><p>Filtros combinables, paginación y control de SLA.</p></div></div><div class="card"><div class="grid grid-4">
- <div class="field"><label>Buscar código o cliente</label><input [(ngModel)]="f.q" (keyup.enter)="load(0)"></div><div class="field"><label>Estado</label><select [(ngModel)]="f.status"><option value="">Todos</option><option *ngFor="let s of statuses" [value]="s">{{label(s)}}</option></select></div><div class="field"><label>Tipo</label><select [(ngModel)]="f.type"><option value="">Todos</option><option *ngFor="let x of types" [value]="x">{{x}}</option></select></div><div class="field"><label>Prioridad</label><select [(ngModel)]="f.priority"><option value="">Todas</option><option *ngFor="let x of priorities" [value]="x">{{x}}</option></select></div>
- <div class="field"><label>Sucursal</label><select [(ngModel)]="f.branchId"><option value="">Todas</option><option *ngFor="let b of branches" [value]="b.id">{{b.name}}</option></select></div><div class="field"><label>Categoría</label><select [(ngModel)]="f.category"><option value="">Todas</option><option *ngFor="let x of categories" [value]="x">{{label(x)}}</option></select></div><div class="field"><label>Indicador SLA</label><select [(ngModel)]="f.sla"><option value="">Todos</option><option value="EN_TIEMPO">En tiempo</option><option value="PROXIMO_VENCER">Próximo a vencer</option><option value="VENCIDO">Vencido</option></select></div><div class="field"><label>Desde</label><input type="date" [(ngModel)]="f.from"></div><div class="field"><label>Hasta</label><input type="date" [(ngModel)]="f.to"></div>
- </div><div class="form-actions"><button class="btn btn-secondary" (click)="clear()">Limpiar</button><button class="btn btn-primary" (click)="load(0)">Aplicar filtros</button></div></div>
-<div *ngIf="error" class="alert alert-error">{{error}}</div><div class="card"><div class="split"><strong>{{page?.totalElements??0}} resultado(s)</strong><span class="muted">Página {{(page?.page??0)+1}} de {{page?.totalPages||1}}</span></div><div class="table-wrap" style="margin-top:12px"><table class="table"><thead><tr><th>Código</th><th>Tipo</th><th>Estado</th><th>Prioridad</th><th>Sucursal</th><th>Responsable</th><th>SLA</th><th></th></tr></thead><tbody><tr *ngFor="let c of page?.content"><td class="mono"><strong>{{c.code}}</strong><div class="muted">{{c.createdAt|date:'dd/MM/yy HH:mm'}}</div></td><td>{{c.type}}</td><td><span class="badge blue">{{label(c.status)}}</span></td><td><span class="badge" [class.red]="c.priority==='CRITICA'" [class.amber]="c.priority==='ALTA'">{{c.priority}}</span></td><td>{{c.branch}}</td><td>{{c.responsible||'Sin asignar'}}</td><td><span class="badge" [class.red]="c.slaBreached" [class.green]="!c.slaBreached">{{c.slaBreached?'VENCIDO':'EN CURSO'}}</span></td><td><a [routerLink]="['/app/casos',c.id]" class="btn btn-outline btn-sm">Abrir</a></td></tr><tr *ngIf="!page?.content?.length"><td colspan="8" class="muted">No hay casos con estos filtros.</td></tr></tbody></table></div><div class="pagination"><button class="btn btn-outline btn-sm" [disabled]="!page||page.page<=0" (click)="load((page?.page??0)-1)">Anterior</button><button class="btn btn-outline btn-sm" [disabled]="!page||page.page+1>=page.totalPages" (click)="load((page?.page??0)+1)">Siguiente</button></div></div></div>
+<div class="page">
+
+    <div class="page-head">
+      <div>
+        <span class="page-kicker">GESTIÓN DE CASOS</span>
+        <h1>Casos</h1>
+      </div>
+    </div>
+  
+    <!-- =====================================================
+         FILTROS - FLUJO NORMAL PASOS 4 Y 5
+         ===================================================== -->
+  
+    <div class="card filters-card">
+  
+      <div class="card-head">
+        <h2>Filtros de búsqueda</h2>
+      </div>
+  
+      <div class="filters-grid">
+  
+        <!-- FA01 - CÓDIGO DE SEGUIMIENTO -->
+        <div class="field">
+          <label>Código de seguimiento</label>
+  
+          <input
+            [(ngModel)]="f.code"
+            name="code"
+            class="mono"
+            autocomplete="off"
+            placeholder="QUE-2026-000001"
+            (keyup.enter)="buscar()">
+        </div>
+  
+        <!-- FA02 - RANGO DE FECHAS -->
+        <div class="field">
+          <label>Desde</label>
+  
+          <input
+            type="date"
+            [(ngModel)]="f.from"
+            name="from">
+        </div>
+  
+        <div class="field">
+          <label>Hasta</label>
+  
+          <input
+            type="date"
+            [(ngModel)]="f.to"
+            name="to">
+        </div>
+  
+        <!-- FA03 / RN02 -->
+        <div class="field">
+          <label>Tipo de caso</label>
+  
+          <select
+            [(ngModel)]="f.type"
+            name="type">
+  
+            <option value="">Todos</option>
+  
+            <option
+              *ngFor="let tipo of types"
+              [value]="tipo">
+              {{ label(tipo) }}
+            </option>
+  
+          </select>
+        </div>
+  
+        <!-- FA05 / RN04 -->
+        <div class="field">
+          <label>Prioridad</label>
+  
+          <select
+            [(ngModel)]="f.priority"
+            name="priority">
+  
+            <option value="">Todas</option>
+  
+            <option
+              *ngFor="let prioridad of priorities"
+              [value]="prioridad">
+              {{ label(prioridad) }}
+            </option>
+  
+          </select>
+        </div>
+  
+        <!-- FA06 -->
+        <div class="field">
+          <label>Sucursal</label>
+  
+          <select
+            [(ngModel)]="f.branchId"
+            name="branchId">
+  
+            <option [ngValue]="''">Todas</option>
+  
+            <option
+              *ngFor="let sucursal of branches"
+              [ngValue]="sucursal.id">
+              {{ sucursal.name }}
+            </option>
+  
+          </select>
+        </div>
+  
+        <!-- FA06 -->
+        <div class="field">
+          <label>Categoría</label>
+  
+          <select
+            [(ngModel)]="f.category"
+            name="category">
+  
+            <option value="">Todas</option>
+  
+            <option
+              *ngFor="let categoria of categories"
+              [value]="categoria">
+              {{ label(categoria) }}
+            </option>
+  
+          </select>
+        </div>
+  
+        <!-- FA06 -->
+        <div class="field">
+          <label>Responsable</label>
+  
+          <select
+            [(ngModel)]="f.responsibleId"
+            name="responsibleId">
+  
+            <option [ngValue]="''">Todos</option>
+  
+            <option
+              *ngFor="let responsable of responsables"
+              [ngValue]="responsable.id">
+              {{ responsable.name }}
+            </option>
+  
+          </select>
+        </div>
+  
+        <!-- FA07 / RN20 -->
+        <div class="field">
+          <label>Cumplimiento del tiempo de atención</label>
+  
+          <select
+            [(ngModel)]="f.sla"
+            name="sla">
+  
+            <option value="">Todos</option>
+            <option value="EN_TIEMPO">En tiempo</option>
+            <option value="PROXIMO_A_VENCER">Próximo a vencer</option>
+            <option value="VENCIDO">Vencido</option>
+  
+          </select>
+        </div>
+  
+      </div>
+  
+      <!-- FA04 - UNO O VARIOS ESTADOS -->
+      <div class="status-section">
+  
+        <label class="status-title">Estado</label>
+  
+        <div class="status-grid">
+  
+          <label
+            class="status-option"
+            *ngFor="let estado of statuses">
+  
+            <input
+              type="checkbox"
+              [checked]="f.status.includes(estado)"
+              (change)="toggleEstado(estado, $event)">
+  
+            <span class="check-mark"></span>
+  
+            <span>
+              {{ label(estado) }}
+            </span>
+  
+          </label>
+  
+        </div>
+  
+      </div>
+  
+      <!-- PASO 5 -->
+      <div class="form-actions">
+  
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [disabled]="loading"
+          (click)="clear()">
+          Limpiar Filtros
+        </button>
+  
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="loading"
+          (click)="buscar()">
+          Buscar
+        </button>
+  
+      </div>
+  
+    </div>
+  
+    <!-- =====================================================
+         TABLA - FLUJO NORMAL PASOS 6 Y 7
+         ===================================================== -->
+  
+    <div class="card table-card">
+  
+      <div class="results-head">
+  
+        <div>
+          <span class="results-label">Resultados</span>
+          <strong>{{ page?.totalElements ?? 0 }}</strong>
+        </div>
+  
+        <span class="page-indicator">
+          Página {{ (page?.page ?? 0) + 1 }}
+          de {{ page?.totalPages || 1 }}
+        </span>
+  
+      </div>
+  
+      <div class="table-wrap">
+  
+        <table class="table">
+  
+          <thead>
+            <tr>
+              <th>Código de seguimiento</th>
+              <th>Tipo de caso</th>
+              <th>Cliente / Anónimo</th>
+              <th>Sucursal</th>
+              <th>Categoría</th>
+              <th>Prioridad</th>
+              <th>Estado actual</th>
+              <th>Responsable</th>
+              <th>Fecha de registro</th>
+              <th>Fecha límite de primera respuesta</th>
+              <th>Cumplimiento del tiempo de atención</th>
+              <th class="action-column"></th>
+            </tr>
+          </thead>
+  
+          <tbody>
+  
+            <tr *ngFor="let caso of page?.content">
+  
+              <td>
+                <strong class="case-code mono">
+                  {{ caso.code }}
+                </strong>
+              </td>
+  
+              <td>
+                {{ label(caso.type) }}
+              </td>
+  
+              <td>
+                <span [class.anonymous-text]="caso.anonymous">
+                  {{ clienteTexto(caso) }}
+                </span>
+              </td>
+  
+              <td>
+                {{ caso.branch || '—' }}
+              </td>
+  
+              <td>
+                {{ label(caso.category) }}
+              </td>
+  
+              <td>
+                <span
+                  class="badge priority-badge"
+                  [ngClass]="prioridadClase(caso.priority)">
+                  {{ label(caso.priority) }}
+                </span>
+              </td>
+  
+              <td>
+                <span class="badge status-badge">
+                  {{ label(caso.status) }}
+                </span>
+              </td>
+  
+              <td>
+                <span [class.no-responsible]="!caso.responsible">
+                  {{ caso.responsible || 'Sin asignar' }}
+                </span>
+              </td>
+  
+              <td class="date-cell">
+                {{ caso.createdAt | date:'dd/MM/yyyy HH:mm' }}
+              </td>
+  
+              <td class="date-cell">
+  
+                <ng-container
+                  *ngIf="caso.slaDeadlineAt; else sinFechaLimite">
+  
+                  {{ caso.slaDeadlineAt | date:'dd/MM/yyyy HH:mm' }}
+  
+                </ng-container>
+  
+                <ng-template #sinFechaLimite>
+                  —
+                </ng-template>
+  
+              </td>
+  
+              <td>
+                <span
+                  class="sla-badge"
+                  [ngClass]="slaClase(caso)">
+  
+                  <span class="sla-dot"></span>
+  
+                  {{ slaTexto(caso) }}
+  
+                </span>
+              </td>
+  
+              <td>
+                <a
+                  [routerLink]="['/app/casos', caso.id]"
+                  class="btn btn-outline btn-sm"
+                  (click)="guardarEstadoBandeja()">
+                  Ver Detalle
+                </a>
+              </td>
+  
+            </tr>
+  
+            <!-- FA09 / AN02 No. 5 -->
+            <tr
+              *ngIf="
+                !loading &&
+                !page?.content?.length
+              ">
+  
+              <td
+                colspan="12"
+                class="empty-cell">
+  
+                <div class="empty-state">
+  
+                  <div class="empty-symbol">!</div>
+  
+                  <span>
+                    No existen registros que coincidan con los criterios de búsqueda.
+                  </span>
+  
+                </div>
+  
+              </td>
+  
+            </tr>
+  
+            <tr *ngIf="loading">
+  
+              <td
+                colspan="12"
+                class="loading-cell">
+  
+                <div class="loading-row">
+                  <span class="spinner"></span>
+                  <span>Cargando casos...</span>
+                </div>
+  
+              </td>
+  
+            </tr>
+  
+          </tbody>
+  
+        </table>
+  
+      </div>
+  
+      <!-- PAGINACIÓN -->
+      <div class="pagination">
+  
+        <button
+          type="button"
+          class="btn btn-outline btn-sm"
+          [disabled]="
+            loading ||
+            !page ||
+            page.page <= 0
+          "
+          (click)="load((page?.page ?? 0) - 1)">
+          Anterior
+        </button>
+  
+        <span>
+          {{ (page?.page ?? 0) + 1 }}
+          /
+          {{ page?.totalPages || 1 }}
+        </span>
+  
+        <button
+          type="button"
+          class="btn btn-outline btn-sm"
+          [disabled]="
+            loading ||
+            !page ||
+            page.page + 1 >= page.totalPages
+          "
+          (click)="load((page?.page ?? 0) + 1)">
+          Siguiente
+        </button>
+  
+      </div>
+  
+    </div>
+  
+  </div>

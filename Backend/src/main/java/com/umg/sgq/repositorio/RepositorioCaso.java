@@ -18,6 +18,12 @@ public interface RepositorioCaso
 
     Optional<Caso> findByCode(String code);
 
+    long countByResponsibleIdAndSlaBreachedTrueAndStatusNotIn(
+            Long userId,
+            Collection<EstadoCaso> statuses
+    );
+
+
     long countByResponsibleIdAndStatusNotIn(
             Long userId,
             Collection<EstadoCaso> statuses
