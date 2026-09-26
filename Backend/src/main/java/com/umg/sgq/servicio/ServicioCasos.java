@@ -1,5 +1,4 @@
 package com.umg.sgq.servicio;
-
 import com.umg.sgq.dto.DtosCasos.*;
 import com.umg.sgq.entidad.*;
 import com.umg.sgq.enumeracion.*;
@@ -14,10 +13,12 @@ import jakarta.persistence.criteria.Predicate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
-
 @Service
 public class ServicioCasos {
     private final RepositorioCaso cases;
@@ -31,7 +32,6 @@ public class ServicioCasos {
     private final ServicioEvidencias evidence;
     private final RepositorioSucursal branchRepository;
     private final RepositorioEvidencia evidenceRepository;
-
     public ServicioCasos(
             RepositorioCaso cases,
             RepositorioUsuario users,
@@ -57,7 +57,6 @@ public class ServicioCasos {
         this.branchRepository = branchRepository;
         this.evidenceRepository = evidenceRepository;
     }
-
     @Transactional(readOnly = true)
     public PaginaCasos search(
             List<EstadoCaso> statuses,
@@ -73,51 +72,38 @@ public class ServicioCasos {
             int page,
             int size
     ) {
-
         Usuario u = current.require();
-
         Long scopeBranch = null;
         Long scopeResponsible = null;
-
         if (u.getRole().getCode() == CodigoRol.AGENTE_ATENCION) {
-
             scopeResponsible = u.getId();
-
             scopeBranch =
                     u.getBranch() == null
                             ? null
                             : u.getBranch().getId();
-
         } else if (
                 u.getRole().getCode() == CodigoRol.SUPERVISOR
         ) {
-
             scopeBranch =
                     u.getBranch() == null
                             ? null
                             : u.getBranch().getId();
         }
-
         // =====================================================
         // FA02 - rango de fechas
         // =====================================================
-
         if (
                 from != null &&
                         to != null &&
                         from.isAfter(to)
         ) {
-
             throw new IllegalArgumentException(
                     "La fecha inicial no puede ser posterior a la fecha final."
             );
         }
-
         final Long sb = scopeBranch;
         final Long sr = scopeResponsible;
-
         final String codigo = blank(code);
-
         /*
          * FA01 / RN05
          *
@@ -135,37 +121,29 @@ public class ServicioCasos {
                                         "^(QUE|REC|DEN|SUG)-\\d{4}-\\d{6}$"
                                 )
         ) {
-
             throw new IllegalArgumentException(
                     "El código de seguimiento no existe o los datos de consulta son incorrectos."
             );
         }
-
         final LocalDateTime f =
                 from == null
                         ? null
                         : from.atStartOfDay();
-
         final LocalDateTime t =
                 to == null
                         ? null
                         : to.plusDays(1)
                         .atStartOfDay()
                         .minusNanos(1);
-
         Specification<Caso> spec =
                 (root, query, cb) -> {
-
                     List<Predicate> ps =
                             new ArrayList<>();
-
                     // =================================================
                     // RN01 / RN21
                     // Ámbito del usuario
                     // =================================================
-
                     if (sb != null) {
-
                         ps.add(
                                 cb.equal(
                                         root.get("branch").get("id"),
@@ -173,9 +151,7 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     if (sr != null) {
-
                         ps.add(
                                 cb.equal(
                                         root.get("responsible").get("id"),
@@ -183,13 +159,10 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA06 - Sucursal
                     // =================================================
-
                     if (branchId != null) {
-
                         ps.add(
                                 cb.equal(
                                         root.get("branch").get("id"),
@@ -197,13 +170,10 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA06 - Responsable
                     // =================================================
-
                     if (responsibleId != null) {
-
                         ps.add(
                                 cb.equal(
                                         root.get("responsible").get("id"),
@@ -211,28 +181,22 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA04 - uno o varios estados
                     // =================================================
-
                     if (
                             statuses != null &&
                                     !statuses.isEmpty()
                     ) {
-
                         ps.add(
                                 root.get("status")
                                         .in(statuses)
                         );
                     }
-
                     // =================================================
                     // FA03 - Tipo
                     // =================================================
-
                     if (type != null) {
-
                         ps.add(
                                 cb.equal(
                                         root.get("type"),
@@ -240,13 +204,10 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA05 - Prioridad
                     // =================================================
-
                     if (priority != null) {
-
                         ps.add(
                                 cb.equal(
                                         root.get("priority"),
@@ -254,13 +215,10 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA06 - Categoría
                     // =================================================
-
                     if (category != null) {
-
                         ps.add(
                                 cb.equal(
                                         root.get("category"),
@@ -268,13 +226,10 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA02 - Fechas
                     // =================================================
-
                     if (f != null) {
-
                         ps.add(
                                 cb.greaterThanOrEqualTo(
                                         root.get("createdAt"),
@@ -282,9 +237,7 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     if (t != null) {
-
                         ps.add(
                                 cb.lessThanOrEqualTo(
                                         root.get("createdAt"),
@@ -292,19 +245,15 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA01 - SOLO código
                     // =================================================
-
                     if (codigo != null) {
-
                         String like =
                                 "%" +
                                         codigo
                                                 .toLowerCase(Locale.ROOT) +
                                         "%";
-
                         ps.add(
                                 cb.like(
                                         cb.lower(
@@ -314,27 +263,22 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     // =================================================
                     // FA07 / RN20 - SLA
                     // =================================================
-
                     if (
                             sla ==
                                     IndicadorSla.VENCIDO
                     ) {
-
                         ps.add(
                                 cb.isTrue(
                                         root.get("slaBreached")
                                 )
                         );
-
                     } else if (
                             sla ==
                                     IndicadorSla.PROXIMO_A_VENCER
                     ) {
-
                         ps.add(
                                 cb.isTrue(
                                         root.get(
@@ -342,7 +286,6 @@ public class ServicioCasos {
                                         )
                                 )
                         );
-
                         ps.add(
                                 cb.isFalse(
                                         root.get(
@@ -350,12 +293,10 @@ public class ServicioCasos {
                                         )
                                 )
                         );
-
                     } else if (
                             sla ==
                                     IndicadorSla.EN_TIEMPO
                     ) {
-
                         ps.add(
                                 cb.isFalse(
                                         root.get(
@@ -363,7 +304,6 @@ public class ServicioCasos {
                                         )
                                 )
                         );
-
                         ps.add(
                                 cb.isFalse(
                                         root.get(
@@ -372,20 +312,17 @@ public class ServicioCasos {
                                 )
                         );
                     }
-
                     return cb.and(
                             ps.toArray(
                                     Predicate[]::new
                             )
                     );
                 };
-
         int safeSize =
                 Math.max(
                         5,
                         Math.min(size, 100)
                 );
-
         Page<Caso> result =
                 cases.findAll(
                         spec,
@@ -398,11 +335,9 @@ public class ServicioCasos {
                                 )
                         )
                 );
-
         boolean revealRole =
                 u.getRole().getCode() !=
                         CodigoRol.AGENTE_ATENCION;
-
         List<VistaCasoInterno> content =
                 result
                         .getContent()
@@ -416,7 +351,6 @@ public class ServicioCasos {
                                         )
                         )
                         .toList();
-
         return new PaginaCasos(
                 content,
                 result.getNumber(),
@@ -425,7 +359,6 @@ public class ServicioCasos {
                 result.getTotalPages()
         );
     }
-
     @Transactional
     public VistaCasoInterno detail(Long id, HttpServletRequest req) {
         Caso c = requireAccessible(id);
@@ -434,7 +367,6 @@ public class ServicioCasos {
         audit.log(req, "CASOS", "CONSULTA_DETALLE", "CASO", c.getCode(), "Consulta de detalle de caso", ResultadoAuditoria.EXITOSO, null, null);
         return mapper.internalView(c, reveal);
     }
-
     @Transactional(readOnly = true)
     public List<VistaAgenteAsignacion> availableAgents(
             Long caseId,
@@ -444,13 +376,10 @@ public class ServicioCasos {
             Boolean available,
             Integer maxOpenCases
     ) {
-
         // CU-05 / RN01 / RN21
         // Solo Supervisor o Administrador puede asignar responsables.
         requireSupervisorOrAdmin();
-
         Caso caso = requireAccessible(caseId);
-
         // CU-05 FA03:
         // No se permite asignar/reasignar en estados finales.
         if (Set.of(
@@ -458,14 +387,12 @@ public class ServicioCasos {
                 EstadoCaso.CANCELADO,
                 EstadoCaso.RECHAZADO
         ).contains(caso.getStatus())) {
-
             throw new IllegalArgumentException(
                     "El caso se encuentra en estado "
                             + caso.getStatus()
                             + " y no permite esta operación."
             );
         }
-
         /*
          * Una asignación inicial solamente corresponde cuando el caso
          * está Pendiente de Asignación o Reabierto sin responsable.
@@ -478,71 +405,57 @@ public class ServicioCasos {
                 EstadoCaso.PENDIENTE_ASIGNACION,
                 EstadoCaso.REABIERTO
         ).contains(caso.getStatus())) {
-
             throw new IllegalArgumentException(
                     "El caso se encuentra en estado "
                             + caso.getStatus()
                             + " y no permite esta operación."
             );
         }
-
         if (maxOpenCases != null && maxOpenCases < 0) {
             throw new IllegalArgumentException(
                     "La cantidad de casos abiertos no puede ser negativa."
             );
         }
-
         String busqueda = blank(q);
-
         List<EstadoCaso> estadosFinales = List.of(
                 EstadoCaso.CERRADO,
                 EstadoCaso.CANCELADO,
                 EstadoCaso.RECHAZADO
         );
-
         LocalDateTime ahora = LocalDateTime.now();
-
         return users.findActiveByRole(
                         CodigoRol.AGENTE_ATENCION,
                         EstadoRegistro.ACTIVO
                 )
                 .stream()
-
                 // =====================================================
                 // RN09
                 // Debe poseer acceso por sucursal O categoría.
                 // =====================================================
                 .filter(usuario -> {
-
                     boolean mismaSucursal =
                             usuario.getBranch() != null
                                     && Objects.equals(
                                     usuario.getBranch().getId(),
                                     caso.getBranch().getId()
                             );
-
                     boolean categoriaAutorizada =
                             usuario.getAuthorizedCategories() != null
                                     && usuario
                                     .getAuthorizedCategories()
                                     .contains(caso.getCategory());
-
                     return mismaSucursal || categoriaAutorizada;
                 })
-
                 // =====================================================
                 // FA04
                 // Nombre completo, parte del nombre o username.
                 // =====================================================
                 .filter(usuario -> {
-
                     if (busqueda == null) {
                         return true;
                     }
-
                     String valor =
                             busqueda.toLowerCase(Locale.ROOT);
-
                     return usuario
                             .getFullName()
                             .toLowerCase(Locale.ROOT)
@@ -553,7 +466,6 @@ public class ServicioCasos {
                                     .toLowerCase(Locale.ROOT)
                                     .contains(valor);
                 })
-
                 // =====================================================
                 // FA05 - Sucursal
                 // =====================================================
@@ -568,7 +480,6 @@ public class ServicioCasos {
                                         )
                                 )
                 )
-
                 // =====================================================
                 // FA05 - Categoría / especialidad
                 // =====================================================
@@ -582,21 +493,17 @@ public class ServicioCasos {
                                                 .contains(category)
                                 )
                 )
-
                 .map(usuario -> {
-
                     long abiertos =
                             cases.countByResponsibleIdAndStatusNotIn(
                                     usuario.getId(),
                                     estadosFinales
                             );
-
                     long vencidos =
                             cases.countByResponsibleIdAndSlaBreachedTrueAndStatusNotIn(
                                     usuario.getId(),
                                     estadosFinales
                             );
-
                     /*
                      * Disponibilidad CU-05:
                      * - usuario marcado como disponible;
@@ -606,12 +513,10 @@ public class ServicioCasos {
                     boolean noBloqueado =
                             usuario.getLockedUntil() == null
                                     || !usuario.getLockedUntil().isAfter(ahora);
-
                     boolean disponible =
                             usuario.isAvailableForAssignment()
                                     && usuario.getStatus() == EstadoRegistro.ACTIVO
                                     && noBloqueado;
-
                     List<CategoriaCaso> categorias =
                             usuario.getAuthorizedCategories() == null
                                     ? List.of()
@@ -622,27 +527,22 @@ public class ServicioCasos {
                                             Comparator.comparing(Enum::name)
                                     )
                                     .toList();
-
                     return new VistaAgenteAsignacion(
                             usuario.getId(),
                             usuario.getFullName(),
                             usuario.getUsername(),
-
                             usuario.getBranch() == null
                                     ? null
                                     : usuario.getBranch().getId(),
-
                             usuario.getBranch() == null
                                     ? "Sin sucursal"
                                     : usuario.getBranch().getName(),
-
                             categorias,
                             abiertos,
                             vencidos,
                             disponible
                     );
                 })
-
                 // =====================================================
                 // FA05 - Disponibilidad
                 // =====================================================
@@ -650,7 +550,6 @@ public class ServicioCasos {
                         available == null
                                 || agente.available() == available
                 )
-
                 // =====================================================
                 // FA05 - Cantidad de casos abiertos
                 // =====================================================
@@ -658,7 +557,6 @@ public class ServicioCasos {
                         maxOpenCases == null
                                 || agente.openCases() <= maxOpenCases
                 )
-
                 /*
                  * FA18:
                  * La lista favorece agentes disponibles y menor carga.
@@ -683,7 +581,6 @@ public class ServicioCasos {
                 )
                 .toList();
     }
-
     @Transactional
     public VistaCasoInterno edit(Long id, SolicitudEdicionCaso r, HttpServletRequest req) {
         requireSupervisorOrAdmin();
@@ -721,17 +618,13 @@ public class ServicioCasos {
         audit.log(req, "CASOS", "ACTUALIZACION", "CASO", c.getCode(), "Información administrativa del caso actualizada", ResultadoAuditoria.EXITOSO, old, nv);
         return mapper.internalView(c, true);
     }
-
     @Transactional(readOnly = true)
     public List<Map<String, Object>>
     responsablesDisponiblesFiltro() {
-
         Usuario usuario =
                 current.require();
-
         CodigoRol rol =
                 usuario.getRole().getCode();
-
         /*
          * AGENTE:
          * Solo puede consultar sus propios casos,
@@ -741,7 +634,6 @@ public class ServicioCasos {
                 rol ==
                         CodigoRol.AGENTE_ATENCION
         ) {
-
             return List.of(
                     Map.of(
                             "id",
@@ -751,7 +643,6 @@ public class ServicioCasos {
                     )
             );
         }
-
         /*
          * SUPERVISOR:
          * únicamente agentes activos
@@ -761,14 +652,11 @@ public class ServicioCasos {
                 rol ==
                         CodigoRol.SUPERVISOR
         ) {
-
             if (
                     usuario.getBranch() == null
             ) {
-
                 return List.of();
             }
-
             return users
                     .findActiveByRoleAndBranch(
                             CodigoRol.AGENTE_ATENCION,
@@ -789,7 +677,6 @@ public class ServicioCasos {
                     )
                     .toList();
         }
-
         /*
          * ADMINISTRADOR:
          * todos los agentes activos.
@@ -825,30 +712,23 @@ public class ServicioCasos {
     @Transactional(readOnly = true)
     public List<Map<String, Object>>
     sucursalesDisponiblesFiltro() {
-
         Usuario usuario =
                 current.require();
-
         CodigoRol rol =
                 usuario.getRole().getCode();
-
         if (
                 rol ==
                         CodigoRol.AGENTE_ATENCION ||
                         rol ==
                                 CodigoRol.SUPERVISOR
         ) {
-
             if (
                     usuario.getBranch() == null
             ) {
-
                 return List.of();
             }
-
             Sucursal sucursal =
                     usuario.getBranch();
-
             return List.of(
                     Map.of(
                             "id",
@@ -858,7 +738,6 @@ public class ServicioCasos {
                     )
             );
         }
-
         return branchRepository
                 .findAll()
                 .stream()
@@ -878,29 +757,23 @@ public class ServicioCasos {
                 )
                 .toList();
     }
-
     @Transactional
     public VistaCasoInterno assign(
             Long id,
             SolicitudAsignacion r,
             HttpServletRequest req
     ) {
-
         requireSupervisorOrAdmin();
-
         Caso c = requireAccessible(id);
-
         // =====================================================
         // FA12 - CONCURRENCIA
         // =====================================================
         if (c.getVersion() != r.version()) {
-
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "La operación fue rechazada porque la información cambió durante el proceso."
             );
         }
-
         // =====================================================
         // FA03 - ESTADO DEL CASO
         // =====================================================
@@ -909,16 +782,13 @@ public class ServicioCasos {
                 EstadoCaso.CANCELADO,
                 EstadoCaso.RECHAZADO
         ).contains(c.getStatus())) {
-
             throw new IllegalArgumentException(
                     "El caso se encuentra en estado "
                             + c.getStatus()
                             + " y no permite esta operación."
             );
         }
-
         Usuario old = c.getResponsible();
-
         /*
          * Asignación inicial:
          * Pendiente de Asignación o Reabierto sin responsable.
@@ -930,14 +800,12 @@ public class ServicioCasos {
                 EstadoCaso.PENDIENTE_ASIGNACION,
                 EstadoCaso.REABIERTO
         ).contains(c.getStatus())) {
-
             throw new IllegalArgumentException(
                     "El caso se encuentra en estado "
                             + c.getStatus()
                             + " y no permite esta operación."
             );
         }
-
         Usuario agent =
                 users.findById(r.responsibleId())
                         .orElseThrow(
@@ -945,39 +813,31 @@ public class ServicioCasos {
                                         "El responsable seleccionado no existe."
                                 )
                         );
-
         // =====================================================
         // FA09 / RN09 / RN15
         // ACTIVO, ROL CORRECTO Y NO BLOQUEADO
         // =====================================================
         if (agent.getStatus() != EstadoRegistro.ACTIVO
                 || agent.getRole().getCode() != CodigoRol.AGENTE_ATENCION) {
-
             throw new IllegalArgumentException(
                     "El responsable seleccionado no se encuentra activo."
             );
         }
-
         boolean bloqueado =
                 agent.getLockedUntil() != null
                         && agent
                         .getLockedUntil()
                         .isAfter(LocalDateTime.now());
-
         if (bloqueado) {
-
             throw new IllegalArgumentException(
                     "El responsable seleccionado no se encuentra activo."
             );
         }
-
         if (!agent.isAvailableForAssignment()) {
-
             throw new IllegalArgumentException(
                     "El responsable seleccionado no se encuentra disponible."
             );
         }
-
         // =====================================================
         // RN09 / FA10
         // ACCESO POR SUCURSAL O CATEGORÍA
@@ -988,20 +848,16 @@ public class ServicioCasos {
                         agent.getBranch().getId(),
                         c.getBranch().getId()
                 );
-
         boolean accesoCategoria =
                 agent.getAuthorizedCategories() != null
                         && agent
                         .getAuthorizedCategories()
                         .contains(c.getCategory());
-
         if (!accesoSucursal && !accesoCategoria) {
-
             throw new IllegalArgumentException(
                     "El responsable seleccionado no posee acceso a la sucursal o categoría del caso."
             );
         }
-
         // =====================================================
         // FA15 - MISMO RESPONSABLE
         // =====================================================
@@ -1010,14 +866,11 @@ public class ServicioCasos {
                 old.getId(),
                 agent.getId()
         )) {
-
             throw new IllegalArgumentException(
                     "Seleccione un responsable diferente al actual"
             );
         }
-
         boolean reassignment = old != null;
-
         // =====================================================
         // FA16 - MOTIVO OBLIGATORIO EN REASIGNACIÓN
         // =====================================================
@@ -1026,16 +879,12 @@ public class ServicioCasos {
                 r.reason() == null
                         || r.reason().isBlank()
         )) {
-
             throw new IllegalArgumentException(
                     "Complete todos los campos obligatorios."
             );
         }
-
         Usuario ejecutor = current.require();
-
         EstadoCaso oldStatus = c.getStatus();
-
         // =====================================================
         // REGISTRO DE LA ASIGNACIÓN
         // =====================================================
@@ -1043,7 +892,6 @@ public class ServicioCasos {
         c.setAssignedAt(LocalDateTime.now());
         c.setAssignedBy(ejecutor);
         c.setAssignmentObservation(blank(r.reason()));
-
         // =====================================================
         // RN10
         // Asignación inicial cambia a ASIGNADO.
@@ -1053,24 +901,19 @@ public class ServicioCasos {
                 oldStatus == EstadoCaso.PENDIENTE_ASIGNACION
                         || oldStatus == EstadoCaso.REABIERTO
         )) {
-
             rules.requireTransition(
                     oldStatus,
                     EstadoCaso.ASIGNADO
             );
-
             c.setStatus(
                     EstadoCaso.ASIGNADO
             );
         }
-
         cases.save(c);
-
         String action =
                 reassignment
                         ? "REASIGNACION"
                         : "ASIGNACION";
-
         Map<String, Object> anterior =
                 old == null
                         ? null
@@ -1078,37 +921,30 @@ public class ServicioCasos {
                         "responsable",
                         old.getUsername()
                 );
-
         Map<String, Object> nuevo =
                 new LinkedHashMap<>();
-
         nuevo.put(
                 "responsable",
                 agent.getUsername()
         );
-
         nuevo.put(
                 "estado",
                 c.getStatus().name()
         );
-
         nuevo.put(
                 "fechaAsignacion",
                 c.getAssignedAt()
         );
-
         nuevo.put(
                 "asignadoPor",
                 ejecutor.getUsername()
         );
-
         if (blank(r.reason()) != null) {
             nuevo.put(
                     "observacion",
                     blank(r.reason())
             );
         }
-
         // =====================================================
         // RN18 / RN19 - BITÁCORA
         // =====================================================
@@ -1118,16 +954,13 @@ public class ServicioCasos {
                 action,
                 "CASO",
                 c.getCode(),
-
                 reassignment
                         ? "Caso reasignado. Motivo: " + r.reason()
                         : "Caso asignado a " + agent.getUsername(),
-
                 ResultadoAuditoria.EXITOSO,
                 anterior,
                 nuevo
         );
-
         // =====================================================
         // RN14 - NUEVO RESPONSABLE
         // =====================================================
@@ -1139,10 +972,8 @@ public class ServicioCasos {
                 agent,
                 "Se le asignó el caso " + c.getCode()
         );
-
         if (agent.getEmail() != null
                 && !agent.getEmail().isBlank()) {
-
             notifications.email(
                     reassignment
                             ? EventoNotificacion.REASIGNACION
@@ -1152,12 +983,10 @@ public class ServicioCasos {
                     "Se le asignó el caso " + c.getCode()
             );
         }
-
         // =====================================================
         // FA14 - RESPONSABLE ANTERIOR
         // =====================================================
         if (reassignment && old != null) {
-
             notifications.internal(
                     EventoNotificacion.REASIGNACION,
                     c,
@@ -1166,10 +995,8 @@ public class ServicioCasos {
                             + c.getCode()
                             + " fue reasignado."
             );
-
             if (old.getEmail() != null
                     && !old.getEmail().isBlank()) {
-
                 notifications.email(
                         EventoNotificacion.REASIGNACION,
                         c,
@@ -1180,13 +1007,11 @@ public class ServicioCasos {
                 );
             }
         }
-
         return mapper.internalView(
                 c,
                 true
         );
     }
-
     @Transactional
     public VistaCasoInterno followUp(Long id, SolicitudSeguimiento r, List<MultipartFile> files, HttpServletRequest req) {
         Caso c = requireAccessible(id);
@@ -1228,7 +1053,6 @@ public class ServicioCasos {
             notifications.email(EventoNotificacion.SEGUIMIENTO_VISIBLE, c, c.getEmail(), "Existe un nuevo seguimiento visible en su caso.");
         return mapper.internalView(c, canReveal(c, u));
     }
-
     @Transactional
     public VistaCasoInterno resolve(Long id, SolicitudResolucion r, HttpServletRequest req) {
         Caso c = requireAccessible(id);
@@ -1253,73 +1077,184 @@ public class ServicioCasos {
             notifications.internal(EventoNotificacion.CAMBIO_RESUELTO, c, c.getBranch().getSupervisor(), "Caso resuelto pendiente de cierre: " + c.getCode());
         return mapper.internalView(c, canReveal(c, u));
     }
-
     @Transactional
     public VistaCasoInterno close(Long id, SolicitudCierre r, HttpServletRequest req) {
         requireSupervisorOrAdmin();
         Caso c = requireAccessible(id);
         Usuario closer = current.require();
-        if (c.getResponsible() == null)
-            throw new IllegalArgumentException("No podrá cerrarse un caso sin responsable.");
-        if (followUps.countByComplaintCaseId(c.getId()) < 1)
-            throw new IllegalArgumentException("Debe registrar al menos un seguimiento antes de resolver el caso.");
-        if (c.getResolution() == null || c.getResolution().isBlank())
-            throw new IllegalArgumentException("Debe registrar una resolución antes de cerrar el caso.");
-        if ((c.getPriority() == Prioridad.CRITICA || c.isConfidential()) && !r.criticalReviewConfirmed())
-            throw new IllegalArgumentException("La revisión obligatoria del caso crítico se encuentra pendiente.");
-        if (r.reason() == MotivoCierre.OTRO && (r.detailReason() == null || r.detailReason().trim().length() < 10))
-            throw new IllegalArgumentException("El detalle del motivo Otro debe contener al menos 10 caracteres.");
-        if (r.reason() == MotivoCierre.DUPLICADO) {
-            if (r.duplicateCaseCode() == null || r.duplicateCaseCode().isBlank())
-                throw new IllegalArgumentException("Debe indicar el código del caso principal duplicado.");
-            Caso main = cases.findByCode(r.duplicateCaseCode().trim().toUpperCase(Locale.ROOT)).orElseThrow(() -> new IllegalArgumentException("El código de seguimiento no existe o los datos de consulta son incorrectos."));
-            if (Objects.equals(main.getId(), c.getId()))
-                throw new IllegalArgumentException("El caso duplicado no puede referirse a sí mismo.");
-            c.setDuplicateCaseCode(main.getCode());
+        // FA07 / FA16: si alguien cambió el caso mientras el formulario estaba abierto, no se cierra.
+        if (c.getVersion() != r.version()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "El caso fue actualizado por otro usuario. Revise la información vigente.");
         }
-        if (r.reason() == MotivoCierre.CLIENTE_NO_RESPONDIO && followUps.findByComplaintCaseIdOrderByCreatedAtAsc(c.getId()).stream().noneMatch(f -> f.getType() == TipoSeguimiento.SOLICITUD_INFORMACION))
-            throw new IllegalArgumentException("El motivo Cliente no respondió requiere una solicitud de información previa.");
+        // RN03 / RN10 / RN12: el cierre ordinario solo parte de RESUELTO.
+        if (c.getStatus() != EstadoCaso.RESUELTO) {
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado " + c.getStatus() + " y no permite esta operación.");
+        }
+        // FA24: no permitir un cierre adicional mientras exista solicitud de reapertura pendiente.
+        if (c.getReopenRequestedAt() != null) {
+            throw new IllegalArgumentException(
+                    "Existe una solicitud de reapertura pendiente de revisión.");
+        }
+        // RN09 / RN12: responsable activo; si dejó de estar activo, solo ADMINISTRADOR con justificación.
+        if (c.getResponsible() == null) {
+            throw new IllegalArgumentException(
+                    "El caso debe contar con un responsable antes de cerrarse.");
+        }
+        if (c.getResponsible().getStatus() != EstadoRegistro.ACTIVO) {
+            String justificacion = blank(r.internalObservation());
+            if (closer.getRole().getCode() != CodigoRol.ADMINISTRADOR
+                    || justificacion == null || justificacion.length() < 10) {
+                throw new IllegalArgumentException(
+                        "El responsable del caso no se encuentra activo. Registre una justificación administrativa válida.");
+            }
+        }
+        List<Seguimiento> seguimientos =
+                followUps.findByComplaintCaseIdOrderByCreatedAtAsc(c.getId());
+        if (seguimientos.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "El caso debe contar con al menos un seguimiento registrado.");
+        }
+        if (c.getResolution() == null || c.getResolution().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Debe registrar una resolución antes de cerrar el caso.");
+        }
+        // FA13: con el modelo actual, una acción correctiva posterior a la resolución
+        // se considera pendiente hasta que exista una nueva resolución posterior.
+        if (tieneAccionCorrectivaPosteriorAResolucion(c, seguimientos)) {
+            throw new IllegalArgumentException(
+                    "El caso contiene acciones pendientes y no puede cerrarse.");
+        }
+        boolean solicitudPendiente = tieneSolicitudInformacionPendiente(seguimientos);
+        // FA14: una solicitud pendiente bloquea el cierre ordinario.
+        if (solicitudPendiente && r.reason() != MotivoCierre.CLIENTE_NO_RESPONDIO) {
+            throw new IllegalArgumentException(
+                    "Debe reanudar el caso o aplicar el motivo Cliente no respondió conforme a las reglas vigentes.");
+        }
+        // FA10: Cliente no respondió exige una solicitud todavía pendiente.
+        if (r.reason() == MotivoCierre.CLIENTE_NO_RESPONDIO && !solicitudPendiente) {
+            throw new IllegalArgumentException(
+                    "No existen intentos de contacto suficientes para utilizar este motivo.");
+        }
+        // FA15 / FA27: revisión reforzada para prioridad crítica o denuncia confidencial.
+        if ((c.getPriority() == Prioridad.CRITICA || c.isConfidential())
+                && !r.criticalReviewConfirmed()) {
+            throw new IllegalArgumentException(
+                    "La revisión obligatoria del caso crítico se encuentra pendiente.");
+        }
+        // FA08: OTRO requiere detalle de al menos 10 caracteres.
+        if (r.reason() == MotivoCierre.OTRO
+                && (r.detailReason() == null || r.detailReason().trim().length() < 10)) {
+            throw new IllegalArgumentException(
+                    "El detalle del motivo debe contener al menos 10 caracteres.");
+        }
+        // FA09: DUPLICADO requiere código válido y distinto al propio caso.
+        if (r.reason() == MotivoCierre.DUPLICADO) {
+            if (r.duplicateCaseCode() == null || r.duplicateCaseCode().isBlank()) {
+                throw new IllegalArgumentException(
+                        "Complete todos los campos obligatorios.");
+            }
+            String codigoPrincipal = r.duplicateCaseCode().trim().toUpperCase(Locale.ROOT);
+            Caso principal = cases.findByCode(codigoPrincipal)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El código de seguimiento no existe o los datos de consulta son incorrectos."));
+            if (Objects.equals(principal.getId(), c.getId())) {
+                throw new IllegalArgumentException(
+                        "El código del caso principal no puede corresponder al mismo caso.");
+            }
+            c.setDuplicateCaseCode(principal.getCode());
+        } else {
+            c.setDuplicateCaseCode(null);
+        }
         EstadoCaso old = c.getStatus();
         rules.requireTransition(old, EstadoCaso.CERRADO);
+        // RN20: detener/actualizar el conteo SLA al entrar a estado final.
+        rules.applyTransitionSla(c, old, EstadoCaso.CERRADO);
         c.setStatus(EstadoCaso.CERRADO);
         c.setCloseReason(r.reason());
-        c.setCloseComment(r.summary().trim() + (r.detailReason() == null || r.detailReason().isBlank() ? "" : " | " + r.detailReason().trim()));
+        c.setCloseComment(r.summary().trim()
+                + (r.detailReason() == null || r.detailReason().isBlank()
+                ? "" : " | " + r.detailReason().trim()));
         c.setCloseInternalObservation(blank(r.internalObservation()));
         c.setClosedAt(LocalDateTime.now());
         c.setClosedBy(closer);
-        cases.save(c);
-        audit.log(req, "CASOS", "CIERRE", "CASO", c.getCode(), "Caso cerrado. Motivo: " + r.reason(), ResultadoAuditoria.EXITOSO, Map.of("estado", old.name()), Map.of("estado", c.getStatus().name(), "motivo", r.reason().name()));
-        if (r.notifyClient() && c.getEmail() != null)
-            notifications.email(EventoNotificacion.CIERRE, c, c.getEmail(), "El caso ha sido cerrado." + (r.sendSurvey() ? " Puede responder la encuesta de satisfacción." : ""));
-        if (c.getResponsible() != null)
-            notifications.internal(EventoNotificacion.CIERRE, c, c.getResponsible(), "El caso " + c.getCode() + " fue cerrado.");
+        // saveAndFlush ayuda a materializar la nueva versión antes de construir la respuesta.
+        cases.saveAndFlush(c);
+        // FA18 / RN18 / RN19: permanece dentro de la misma transacción.
+        // Si la auditoría falla, Spring revierte el cierre.
+        audit.log(req, "CASOS", "CIERRE", "CASO", c.getCode(),
+                "Caso cerrado. Motivo: " + r.reason(),
+                ResultadoAuditoria.EXITOSO,
+                Map.of("estado", old.name()),
+                Map.of("estado", c.getStatus().name(),
+                        "motivo", r.reason().name(),
+                        "resumen", r.summary().trim()));
+        // FA19 / FA20: notificación y encuesta se procesan después del COMMIT.
+        // Un fallo externo no revierte un cierre ya válido.
+        programarNotificacionesCierre(c.getId(), r.notifyClient(), r.sendSurvey(), req);
         return mapper.internalView(c, true);
     }
-
+    @Transactional
+    public byte[] closureCertificate(Long id, HttpServletRequest req) {
+        Caso c = requireAccessible(id);
+        if (c.getStatus() != EstadoCaso.CERRADO) {
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado " + c.getStatus() + " y no permite esta operación.");
+        }
+        List<String> lineas = new ArrayList<>();
+        lineas.add("CONSTANCIA DE CIERRE");
+        lineas.add("");
+        lineas.add("Código: " + c.getCode());
+        lineas.add("Tipo: " + c.getType());
+        lineas.add("Estado: " + c.getStatus());
+        lineas.add("Fecha de registro: " + c.getCreatedAt());
+        lineas.add("Fecha de cierre: " + c.getClosedAt());
+        lineas.add("Motivo: " + (c.getCloseReason() == null ? "—" : c.getCloseReason()));
+        lineas.add("Responsable: " + (c.getResponsible() == null ? "—" : c.getResponsible().getFullName()));
+        lineas.add("Cierre autorizado por: " + (c.getClosedBy() == null ? "—" : c.getClosedBy().getFullName()));
+        lineas.add("");
+        lineas.addAll(dividirLineaPdf("Resumen: ", c.getCloseComment(), 86));
+        byte[] pdf = crearPdfSimple(lineas);
+        audit.log(req, "CASOS", "CONSTANCIA_CIERRE", "CASO", c.getCode(),
+                "Constancia de cierre generada y descargada",
+                ResultadoAuditoria.EXITOSO, null, null);
+        return pdf;
+    }
     @Transactional
     public VistaCasoInterno reopen(Long id, SolicitudReapertura r, HttpServletRequest req) {
         requireSupervisorOrAdmin();
         Caso c = requireAccessible(id);
         EstadoCaso old = c.getStatus();
-        if (!Set.of(EstadoCaso.CERRADO, EstadoCaso.RESUELTO, EstadoCaso.RECHAZADO, EstadoCaso.CANCELADO).contains(old))
-            throw new IllegalArgumentException("El caso se encuentra en estado " + old + " y no permite esta operación.");
-        if (old == EstadoCaso.CERRADO && c.getClosedAt() != null && c.getClosedAt().plusDays(15).isBefore(LocalDateTime.now()) && !r.specialJustification())
-            throw new IllegalArgumentException("El plazo ordinario para reabrir el caso ha vencido.");
+        if (!Set.of(EstadoCaso.CERRADO, EstadoCaso.RESUELTO, EstadoCaso.RECHAZADO, EstadoCaso.CANCELADO).contains(old)) {
+            throw new IllegalArgumentException(
+                    "El caso se encuentra en estado " + old + " y no permite esta operación.");
+        }
+        if (old == EstadoCaso.CERRADO && c.getClosedAt() == null) {
+            throw new IllegalArgumentException(
+                    "No fue posible determinar la fecha de cierre del caso.");
+        }
+        if (old == EstadoCaso.CERRADO
+                && c.getClosedAt().plusDays(15).isBefore(LocalDateTime.now())
+                && !r.specialJustification()) {
+            throw new IllegalArgumentException(
+                    "El plazo ordinario para reabrir el caso ha vencido.");
+        }
         rules.requireTransition(old, EstadoCaso.REABIERTO);
         c.setStatus(EstadoCaso.REABIERTO);
         c.setReopenedAt(LocalDateTime.now());
         c.setReopenReason(r.reason().trim());
         c.setReopenRequestedAt(null);
         c.setReopenRequestReason(null);
-        cases.save(c);
-        audit.log(req, "CASOS", "REAPERTURA", "CASO", c.getCode(), "Caso reabierto. Motivo: " + r.reason(), ResultadoAuditoria.EXITOSO, Map.of("estado", old.name()), Map.of("estado", c.getStatus().name()));
-        if (c.getResponsible() != null)
-            notifications.internal(EventoNotificacion.REASIGNACION, c, c.getResponsible(), "El caso " + c.getCode() + " fue reabierto.");
-        if (c.getEmail() != null)
-            notifications.email(EventoNotificacion.REASIGNACION, c, c.getEmail(), "Su caso fue reabierto.");
+        cases.saveAndFlush(c);
+        audit.log(req, "CASOS", "REAPERTURA", "CASO", c.getCode(),
+                "Caso reabierto. Motivo: " + r.reason(),
+                ResultadoAuditoria.EXITOSO,
+                Map.of("estado", old.name()),
+                Map.of("estado", c.getStatus().name(), "motivo", r.reason().trim()));
+        programarNotificacionesReapertura(c.getId(), req);
         return mapper.internalView(c, true);
     }
-
     @Transactional
     public VistaCasoInterno priority(Long id, SolicitudPrioridad r, HttpServletRequest req) {
         requireSupervisorOrAdmin();
@@ -1335,7 +1270,6 @@ public class ServicioCasos {
         audit.log(req, "CASOS", "CAMBIO_PRIORIDAD", "CASO", c.getCode(), "Prioridad modificada", ResultadoAuditoria.EXITOSO, Map.of("prioridad", old.name()), Map.of("prioridad", c.getPriority().name()));
         return mapper.internalView(c, true);
     }
-
     @Transactional
     public VistaCasoInterno status(Long id, SolicitudEstado r, HttpServletRequest req) {
         requireSupervisorOrAdmin();
@@ -1352,11 +1286,9 @@ public class ServicioCasos {
             notifications.email(r.status() == EstadoCaso.RECHAZADO ? EventoNotificacion.RECHAZO : EventoNotificacion.CIERRE, c, c.getEmail(), "El caso cambió a " + r.status() + ".");
         return mapper.internalView(c, true);
     }
-
     // =========================================================
     // CU-07 - CANTIDAD DISPONIBLE
     // =========================================================
-
     @Transactional(readOnly = true)
     public Map<String, Object> evidenceAvailability(
             Long id,
@@ -1365,29 +1297,23 @@ public class ServicioCasos {
     ) {
         Caso c = requireAccessible(id);
         validarEstadoParaEvidencia(c);
-
         Seguimiento seguimiento = resolverSeguimientoEvidencia(c, associationType, followUpId);
-
         long usados = seguimiento == null
                 ? evidenceRepository.countByComplaintCaseIdAndFollowUpIsNullAndStatus(
                 c.getId(), EstadoEvidencia.ACTIVA)
                 : evidenceRepository.countByFollowUpIdAndStatus(
                 seguimiento.getId(), EstadoEvidencia.ACTIVA);
-
         Map<String, Object> respuesta = new LinkedHashMap<>();
         respuesta.put("limit", 5);
         respuesta.put("used", usados);
         respuesta.put("available", Math.max(0, 5 - usados));
         respuesta.put("visibilityEditable", seguimiento == null);
         respuesta.put("visibleToClient", seguimiento != null && seguimiento.isVisibleToClient());
-
         return respuesta;
     }
-
     // =========================================================
     // CU-07 - ADJUNTAR EVIDENCIA
     // =========================================================
-
     @Transactional
     public VistaEvidencia addEvidence(
             Long id,
@@ -1400,7 +1326,6 @@ public class ServicioCasos {
             HttpServletRequest req
     ) {
         Caso c = requireAccessible(id);
-
         // FA05 / FA17 - información cambió durante el proceso
         if (c.getVersion() != version) {
             throw new ResponseStatusException(
@@ -1408,11 +1333,8 @@ public class ServicioCasos {
                     "La operación fue rechazada porque la información cambió durante el proceso."
             );
         }
-
         validarEstadoParaEvidencia(c);
-
         Usuario u = current.require();
-
         if (u.getRole().getCode() == CodigoRol.AGENTE_ATENCION
                 && (c.getResponsible() == null
                 || !Objects.equals(c.getResponsible().getId(), u.getId()))) {
@@ -1420,26 +1342,21 @@ public class ServicioCasos {
                     "No posee permisos para realizar esta acción."
             );
         }
-
         String descripcion = blank(description);
-
         if (descripcion == null) {
             throw new IllegalArgumentException(
                     "Complete todos los campos obligatorios."
             );
         }
-
         Seguimiento seguimiento = resolverSeguimientoEvidencia(
                 c,
                 associationType,
                 followUpId
         );
-
         // FA08 - si pertenece a seguimiento, hereda su visibilidad.
         boolean visibilidadFinal = seguimiento != null
                 ? seguimiento.isVisibleToClient()
                 : visibleToClient;
-
         List<Evidencia> guardadas = evidence.store(
                 c,
                 seguimiento,
@@ -1448,15 +1365,12 @@ public class ServicioCasos {
                 descripcion,
                 req
         );
-
         if (guardadas.isEmpty()) {
             throw new IllegalArgumentException(
                     "No fue posible almacenar el archivo."
             );
         }
-
         Evidencia e = guardadas.get(0);
-
         if (visibilidadFinal
                 && c.getEmail() != null
                 && !c.getEmail().isBlank()) {
@@ -1467,17 +1381,14 @@ public class ServicioCasos {
                     "Se adjuntó una nueva evidencia visible a su caso."
             );
         }
-
         return mapper.evidence(e);
     }
-
     private void validarEstadoParaEvidencia(Caso c) {
         if (c.getStatus() == EstadoCaso.CERRADO) {
             throw new IllegalArgumentException(
                     "El caso se encuentra cerrado y no puede modificarse."
             );
         }
-
         if (Set.of(EstadoCaso.RECHAZADO, EstadoCaso.CANCELADO)
                 .contains(c.getStatus())) {
             throw new IllegalArgumentException(
@@ -1487,7 +1398,6 @@ public class ServicioCasos {
             );
         }
     }
-
     private Seguimiento resolverSeguimientoEvidencia(
             Caso c,
             TipoAsociacionEvidencia associationType,
@@ -1498,22 +1408,18 @@ public class ServicioCasos {
                     "Complete todos los campos obligatorios."
             );
         }
-
         if (associationType == TipoAsociacionEvidencia.CASO) {
             return null;
         }
-
         if (followUpId == null) {
             throw new IllegalArgumentException(
                     "Complete todos los campos obligatorios."
             );
         }
-
         Seguimiento seguimiento = followUps.findById(followUpId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No existen seguimientos disponibles para asociar la evidencia"
                 ));
-
         if (seguimiento.getComplaintCase() == null
                 || !Objects.equals(
                 seguimiento.getComplaintCase().getId(),
@@ -1523,10 +1429,156 @@ public class ServicioCasos {
                     "No existen seguimientos disponibles para asociar la evidencia"
             );
         }
-
         return seguimiento;
     }
-
+    private boolean tieneSolicitudInformacionPendiente(List<Seguimiento> seguimientos) {
+        LocalDateTime ultimaSolicitud = null;
+        LocalDateTime ultimaRespuesta = null;
+        for (Seguimiento f : seguimientos) {
+            if (f.getType() == TipoSeguimiento.SOLICITUD_INFORMACION) {
+                ultimaSolicitud = f.getCreatedAt();
+            } else if (f.getType() == TipoSeguimiento.RESPUESTA_CLIENTE) {
+                ultimaRespuesta = f.getCreatedAt();
+            }
+        }
+        return ultimaSolicitud != null
+                && (ultimaRespuesta == null || ultimaRespuesta.isBefore(ultimaSolicitud));
+    }
+    private boolean tieneAccionCorrectivaPosteriorAResolucion(Caso c, List<Seguimiento> seguimientos) {
+        if (c.getResolutionAt() == null) return false;
+        return seguimientos.stream().anyMatch(f ->
+                f.getType() == TipoSeguimiento.ACCION_CORRECTIVA
+                        && f.getCreatedAt() != null
+                        && f.getCreatedAt().isAfter(c.getResolutionAt()));
+    }
+    private void programarNotificacionesCierre(
+            Long caseId, boolean notificarCliente, boolean enviarEncuesta, HttpServletRequest req) {
+        ejecutarDespuesDeCommit(() -> cases.findById(caseId).ifPresent(caso -> {
+            if (notificarCliente && caso.getEmail() != null && !caso.getEmail().isBlank()) {
+                try {
+                    notifications.email(EventoNotificacion.CIERRE, caso, caso.getEmail(),
+                            "El caso " + caso.getCode() + " ha sido cerrado."
+                                    + (enviarEncuesta ? " Puede responder la encuesta de satisfacción." : ""));
+                } catch (Exception ex) {
+                    registrarFalloNotificacion(req, caso,
+                            "No fue posible enviar la notificación de cierre: " + mensajeSeguro(ex));
+                }
+            }
+            if (caso.getResponsible() != null) {
+                try {
+                    notifications.internal(EventoNotificacion.CIERRE, caso, caso.getResponsible(),
+                            "El caso " + caso.getCode() + " fue cerrado.");
+                } catch (Exception ex) {
+                    registrarFalloNotificacion(req, caso,
+                            "No fue posible enviar la notificación interna de cierre: " + mensajeSeguro(ex));
+                }
+            }
+        }));
+    }
+    private void programarNotificacionesReapertura(Long caseId, HttpServletRequest req) {
+        ejecutarDespuesDeCommit(() -> cases.findById(caseId).ifPresent(caso -> {
+            if (caso.getResponsible() != null) {
+                try {
+                    notifications.internal(EventoNotificacion.REASIGNACION, caso, caso.getResponsible(),
+                            "El caso " + caso.getCode() + " fue reabierto.");
+                } catch (Exception ex) {
+                    registrarFalloNotificacion(req, caso,
+                            "No fue posible notificar la reapertura al responsable: " + mensajeSeguro(ex));
+                }
+            }
+            if (caso.getEmail() != null && !caso.getEmail().isBlank()) {
+                try {
+                    notifications.email(EventoNotificacion.REASIGNACION, caso, caso.getEmail(),
+                            "Su caso " + caso.getCode() + " fue reabierto.");
+                } catch (Exception ex) {
+                    registrarFalloNotificacion(req, caso,
+                            "No fue posible notificar la reapertura al cliente: " + mensajeSeguro(ex));
+                }
+            }
+        }));
+    }
+    private void ejecutarDespuesDeCommit(Runnable accion) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try { accion.run(); } catch (Exception ignored) { }
+                }
+            });
+        } else {
+            try { accion.run(); } catch (Exception ignored) { }
+        }
+    }
+    private void registrarFalloNotificacion(HttpServletRequest req, Caso c, String detalle) {
+        try {
+            audit.log(req, "NOTIFICACIONES", "ENVIO_FALLIDO", "CASO", c.getCode(),
+                    detalle, ResultadoAuditoria.FALLIDO, null, null);
+        } catch (Exception ignored) { }
+    }
+    private String mensajeSeguro(Exception ex) {
+        return ex.getMessage() == null || ex.getMessage().isBlank()
+                ? ex.getClass().getSimpleName() : ex.getMessage();
+    }
+    private List<String> dividirLineaPdf(String prefijo, String texto, int max) {
+        List<String> salida = new ArrayList<>();
+        String limpio = texto == null || texto.isBlank() ? "—" : texto.replaceAll("\\s+", " ").trim();
+        String actual = prefijo;
+        for (String palabra : limpio.split(" ")) {
+            if (actual.length() + palabra.length() + 1 > max) {
+                salida.add(actual);
+                actual = palabra;
+            } else {
+                actual += (actual.endsWith(" ") ? "" : " ") + palabra;
+            }
+        }
+        if (!actual.isBlank()) salida.add(actual);
+        return salida;
+    }
+    private byte[] crearPdfSimple(List<String> lineas) {
+        StringBuilder contenido = new StringBuilder("BT\n/F1 11 Tf\n50 790 Td\n");
+        int maxLineas = 46;
+        for (int i = 0; i < Math.min(lineas.size(), maxLineas); i++) {
+            if (i > 0) contenido.append("0 -16 Td\n");
+            contenido.append("(").append(escaparPdf(lineas.get(i))).append(") Tj\n");
+        }
+        contenido.append("ET\n");
+        byte[] stream = contenido.toString().getBytes(StandardCharsets.ISO_8859_1);
+        List<byte[]> objetos = List.of(
+                "<< /Type /Catalog /Pages 2 0 R >>".getBytes(StandardCharsets.ISO_8859_1),
+                "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".getBytes(StandardCharsets.ISO_8859_1),
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>".getBytes(StandardCharsets.ISO_8859_1),
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>".getBytes(StandardCharsets.ISO_8859_1),
+                ("<< /Length " + stream.length + " >>\nstream\n"
+                        + new String(stream, StandardCharsets.ISO_8859_1)
+                        + "endstream").getBytes(StandardCharsets.ISO_8859_1)
+        );
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        escribirPdf(out, "%PDF-1.4\n");
+        List<Integer> offsets = new ArrayList<>();
+        offsets.add(0);
+        for (int i = 0; i < objetos.size(); i++) {
+            offsets.add(out.size());
+            escribirPdf(out, (i + 1) + " 0 obj\n");
+            out.writeBytes(objetos.get(i));
+            escribirPdf(out, "\nendobj\n");
+        }
+        int xref = out.size();
+        escribirPdf(out, "xref\n0 " + (objetos.size() + 1) + "\n");
+        escribirPdf(out, "0000000000 65535 f \n");
+        for (int i = 1; i < offsets.size(); i++) {
+            escribirPdf(out, String.format(Locale.ROOT, "%010d 00000 n \n", offsets.get(i)));
+        }
+        escribirPdf(out, "trailer\n<< /Size " + (objetos.size() + 1)
+                + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF");
+        return out.toByteArray();
+    }
+    private void escribirPdf(ByteArrayOutputStream out, String texto) {
+        out.writeBytes(texto.getBytes(StandardCharsets.ISO_8859_1));
+    }
+    private String escaparPdf(String texto) {
+        if (texto == null) return "";
+        return texto.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)");
+    }
     public Caso requireAccessible(Long id) {
         Caso c = cases.findById(id).orElseThrow(() -> new IllegalArgumentException("Caso no encontrado."));
         Usuario u = current.require();
@@ -1539,25 +1591,20 @@ public class ServicioCasos {
             throw new IllegalArgumentException("No posee permisos para realizar esta acción.");
         return c;
     }
-
     private Sucursal branchesRef(Long id) {
         return cBranchRepo().findById(id).filter(b -> b.getStatus() == EstadoRegistro.ACTIVO).orElseThrow(() -> new IllegalArgumentException("La sucursal seleccionada se encuentra inactiva."));
     }
-
     private RepositorioSucursal cBranchRepo() {
         return branchRepository;
     }
-
     private void requireSupervisorOrAdmin() {
         CodigoRol r = current.require().getRole().getCode();
         if (r != CodigoRol.SUPERVISOR && r != CodigoRol.ADMINISTRADOR)
             throw new IllegalArgumentException("No posee permisos para realizar esta acción.");
     }
-
     private boolean canReveal(Caso c, Usuario u) {
         return !c.isConfidential() || u.getRole().getCode() != CodigoRol.AGENTE_ATENCION;
     }
-
     private String blank(String s) {
         return s == null || s.isBlank() ? null : s.trim();
     }
